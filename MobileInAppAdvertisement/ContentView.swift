@@ -59,6 +59,10 @@ struct ContentView: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(!adManager.isRewardedAdReady)
                 }
+                ToolbarItem(placement: .navigationBarLeading) {
+                    NavigationLink("📊", destination: PerformanceDashboardView())
+                        .font(.title2)
+                }
                 ToolbarItem {
                     Button(action: addItem) {
                         Label("Add Item", systemImage: "plus")
@@ -127,15 +131,67 @@ struct ItemDetailView: View {
 }
 
 struct BannerAdView: UIViewRepresentable {
+    private let performanceTracker = AdPerformanceTracker.shared
+    
     func makeUIView(context: Context) -> GADBannerView {
         let bannerView = GADBannerView(adSize: GADAdSizeBanner)
         bannerView.adUnitID = AdConfiguration.bannerAdUnitID
         bannerView.rootViewController = UIApplication.shared.windows.first?.rootViewController
+        bannerView.delegate = context.coordinator
+        
+        // Track banner ad request
+        performanceTracker.trackAdRequest(adType: .banner, adUnitID: AdConfiguration.bannerAdUnitID)
+        
         bannerView.load(GADRequest())
         return bannerView
     }
     
     func updateUIView(_ uiView: GADBannerView, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, GADBannerViewDelegate {
+        let parent: BannerAdView
+        
+        init(_ parent: BannerAdView) {
+            self.parent = parent
+        }
+        
+        func bannerViewDidReceiveAd(_ bannerView: GADBannerView) {
+            // Track banner ad load success
+            parent.performanceTracker.trackAdLoadSuccess(
+                adType: .banner,
+                adUnitID: AdConfiguration.bannerAdUnitID
+            )
+        }
+        
+        func bannerView(_ bannerView: GADBannerView, didFailToReceiveAdWithError error: Error) {
+            // Track banner ad load failure
+            parent.performanceTracker.trackAdLoadFailure(
+                adType: .banner,
+                adUnitID: AdConfiguration.bannerAdUnitID,
+                error: error
+            )
+        }
+        
+        func bannerViewDidRecordImpression(_ bannerView: GADBannerView) {
+            // Track banner ad impression
+            parent.performanceTracker.trackAdImpression(
+                adType: .banner,
+                adUnitID: AdConfiguration.bannerAdUnitID
+            )
+        }
+        
+        func bannerViewDidRecordClick(_ bannerView: GADBannerView) {
+            // Track banner ad click
+            parent.performanceTracker.trackAdClick(
+                adType: .banner,
+                adUnitID: AdConfiguration.bannerAdUnitID
+            )
+        }
+    }
 }
 
 class AdManager: ObservableObject {
@@ -144,6 +200,7 @@ class AdManager: ObservableObject {
     
     private var interstitialAd: GADInterstitialAd?
     private var rewardedAd: GADRewardedAd?
+    private let performanceTracker = AdPerformanceTracker.shared
     
     func loadAds() {
         loadInterstitialAd()
@@ -151,6 +208,9 @@ class AdManager: ObservableObject {
     }
     
     func loadInterstitialAd() {
+        // Track ad request
+        performanceTracker.trackAdRequest(adType: .interstitial, adUnitID: AdConfiguration.interstitialAdUnitID)
+        
         let request = GADRequest()
         GADInterstitialAd.load(
             withAdUnitID: AdConfiguration.interstitialAdUnitID,
@@ -160,9 +220,22 @@ class AdManager: ObservableObject {
                 if let error = error {
                     print("Failed to load interstitial ad: \(error.localizedDescription)")
                     self?.isInterstitialAdReady = false
+                    
+                    // Track ad load failure
+                    self?.performanceTracker.trackAdLoadFailure(
+                        adType: .interstitial,
+                        adUnitID: AdConfiguration.interstitialAdUnitID,
+                        error: error
+                    )
                 } else {
                     self?.interstitialAd = ad
                     self?.isInterstitialAdReady = true
+                    
+                    // Track ad load success
+                    self?.performanceTracker.trackAdLoadSuccess(
+                        adType: .interstitial,
+                        adUnitID: AdConfiguration.interstitialAdUnitID
+                    )
                 }
             }
         }
@@ -170,6 +243,9 @@ class AdManager: ObservableObject {
     
     func showInterstitialAd() {
         guard let interstitialAd = interstitialAd else { return }
+        
+        // Track ad impression
+        performanceTracker.trackAdImpression(adType: .interstitial, adUnitID: AdConfiguration.interstitialAdUnitID)
         
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let window = windowScene.windows.first {
@@ -181,6 +257,9 @@ class AdManager: ObservableObject {
     }
     
     func loadRewardedAd() {
+        // Track ad request
+        performanceTracker.trackAdRequest(adType: .rewarded, adUnitID: AdConfiguration.rewardedAdUnitID)
+        
         let request = GADRequest()
         GADRewardedAd.load(
             withAdUnitID: AdConfiguration.rewardedAdUnitID,
@@ -190,9 +269,22 @@ class AdManager: ObservableObject {
                 if let error = error {
                     print("Failed to load rewarded ad: \(error.localizedDescription)")
                     self?.isRewardedAdReady = false
+                    
+                    // Track ad load failure
+                    self?.performanceTracker.trackAdLoadFailure(
+                        adType: .rewarded,
+                        adUnitID: AdConfiguration.rewardedAdUnitID,
+                        error: error
+                    )
                 } else {
                     self?.rewardedAd = ad
                     self?.isRewardedAdReady = true
+                    
+                    // Track ad load success
+                    self?.performanceTracker.trackAdLoadSuccess(
+                        adType: .rewarded,
+                        adUnitID: AdConfiguration.rewardedAdUnitID
+                    )
                 }
             }
         }
@@ -201,11 +293,21 @@ class AdManager: ObservableObject {
     func showRewardedAd() {
         guard let rewardedAd = rewardedAd else { return }
         
+        // Track ad impression
+        performanceTracker.trackAdImpression(adType: .rewarded, adUnitID: AdConfiguration.rewardedAdUnitID)
+        
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let window = windowScene.windows.first {
             rewardedAd.present(fromRootViewController: window.rootViewController!) {
                 // User earned reward
                 print("User earned reward!")
+                
+                // Track rewarded video completion
+                self.performanceTracker.trackRewardedVideoCompletion(
+                    adUnitID: AdConfiguration.rewardedAdUnitID,
+                    rewardAmount: 10,
+                    rewardType: "coins"
+                )
             }
         }
         

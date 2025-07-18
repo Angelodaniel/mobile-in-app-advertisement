@@ -15,6 +15,9 @@ struct MobileInAppAdvertisementApp: App {
     init() {
         // Initialize Google Mobile Ads
         GADMobileAds.sharedInstance().start(completionHandler: nil)
+        
+        // Start performance tracking session
+        AdPerformanceTracker.shared.startSession()
     }
 
     var body: some Scene {
