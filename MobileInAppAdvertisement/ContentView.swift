@@ -71,6 +71,21 @@ struct ContentView: View {
                 BannerAdView()
                     .frame(height: 50)
             }
+            .navigationTitle("Ad Performance Tracker")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Sentry DSN:")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("https://b72599749761ea6e64e6551475b56e21@o4508065179762768.ingest.de.sentry.io/4509434720485456")
+                            .font(.caption2)
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                    }
+                }
+            }
         }
     }
 
@@ -100,11 +115,15 @@ struct ContentView: View {
             }
         }
     }
+    
+    private func getSentryDSN() -> String {
+        // Get the DSN from the same method used in the app
+        return MobileInAppAdvertisementApp.getSentryDSN()
+    }
 }
 
 struct BannerAdView: UIViewRepresentable {
     private let adUnitID = "ca-app-pub-3940256099942544/2934735716" // Test ad unit ID
-    @State private var transactionId: String?
     
     func makeUIView(context: Context) -> BannerView {
         let bannerView = BannerView(adSize: AdSizeBanner)
@@ -119,7 +138,17 @@ struct BannerAdView: UIViewRepresentable {
         bannerView.delegate = context.coordinator
         
         // Start ad lifecycle transaction
-        transactionId = AdLifecycleTracker.shared.startAdLifecycle(
+        let transactionId = AdLifecycleTracker.shared.startAdLifecycle(
+            adType: .banner,
+            adUnitID: adUnitID
+        )
+        
+        // Set transaction ID on coordinator
+        context.coordinator.transactionId = transactionId
+        
+        // Start loading span
+        context.coordinator.loadingSpan = AdLifecycleTracker.shared.startAdLoading(
+            transactionId: transactionId,
             adType: .banner,
             adUnitID: adUnitID
         )
@@ -138,14 +167,22 @@ struct BannerAdView: UIViewRepresentable {
     
     class Coordinator: NSObject, BannerViewDelegate {
         let parent: BannerAdView
+        var transactionId: String?
+        var loadingSpan: Span?
         
         init(_ parent: BannerAdView) {
             self.parent = parent
         }
         
         func bannerViewDidReceiveAd(_ bannerView: BannerView) {
+            // Finish loading span
+            if let loadingSpan = loadingSpan {
+                AdLifecycleTracker.shared.finishAdLoading(span: loadingSpan)
+                self.loadingSpan = nil
+            }
+            
             // Track load success
-            if let transactionId = parent.transactionId {
+            if let transactionId = transactionId {
                 AdLifecycleTracker.shared.trackAdLoadSuccess(
                     transactionId: transactionId,
                     adType: .banner,
@@ -155,8 +192,14 @@ struct BannerAdView: UIViewRepresentable {
         }
         
         func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
+            // Finish loading span
+            if let loadingSpan = loadingSpan {
+                AdLifecycleTracker.shared.finishAdLoading(span: loadingSpan)
+                self.loadingSpan = nil
+            }
+            
             // Track load failure
-            if let transactionId = parent.transactionId {
+            if let transactionId = transactionId {
                 AdLifecycleTracker.shared.trackAdLoadFailure(
                     transactionId: transactionId,
                     adType: .banner,
@@ -168,7 +211,7 @@ struct BannerAdView: UIViewRepresentable {
         
         func bannerViewDidRecordImpression(_ bannerView: BannerView) {
             // Track impression
-            if let transactionId = parent.transactionId {
+            if let transactionId = transactionId {
                 AdLifecycleTracker.shared.trackAdImpression(
                     transactionId: transactionId,
                     adType: .banner,
@@ -179,7 +222,7 @@ struct BannerAdView: UIViewRepresentable {
         
         func bannerViewDidRecordClick(_ bannerView: BannerView) {
             // Track click
-            if let transactionId = parent.transactionId {
+            if let transactionId = transactionId {
                 AdLifecycleTracker.shared.trackAdClick(
                     transactionId: transactionId,
                     adType: .banner,
@@ -281,6 +324,12 @@ class AdManager: NSObject, ObservableObject {
     func showInterstitialAd() {
         guard let ad = interstitialAd else { return }
         
+        // Finish waiting for impression span when show starts (more reliable than waiting for callback)
+        if let waitingSpan = interstitialWaitingForImpressionSpan {
+            AdLifecycleTracker.shared.finishWaitingForImpression(span: waitingSpan)
+            interstitialWaitingForImpressionSpan = nil
+        }
+        
         // Track show start
         if let transactionId = interstitialTransactionId {
             AdLifecycleTracker.shared.trackAdShowStart(
@@ -358,6 +407,12 @@ class AdManager: NSObject, ObservableObject {
     
     func showRewardedAd() {
         guard let ad = rewardedAd else { return }
+        
+        // Finish waiting for impression span when show starts (more reliable than waiting for callback)
+        if let waitingSpan = rewardedWaitingForImpressionSpan {
+            AdLifecycleTracker.shared.finishWaitingForImpression(span: waitingSpan)
+            rewardedWaitingForImpressionSpan = nil
+        }
         
         // Track show start
         if let transactionId = rewardedTransactionId {
@@ -442,6 +497,15 @@ extension AdManager: FullScreenContentDelegate {
     }
     
     func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
+        // Finish waiting for impression span if it's still active
+        if let waitingSpan = interstitialWaitingForImpressionSpan {
+            AdLifecycleTracker.shared.finishWaitingForImpression(span: waitingSpan)
+            interstitialWaitingForImpressionSpan = nil
+        } else if let waitingSpan = rewardedWaitingForImpressionSpan {
+            AdLifecycleTracker.shared.finishWaitingForImpression(span: waitingSpan)
+            rewardedWaitingForImpressionSpan = nil
+        }
+        
         // Finish display time span
         if let displaySpan = interstitialDisplayTimeSpan {
             AdLifecycleTracker.shared.finishAdDisplayTime(span: displaySpan)
@@ -474,6 +538,15 @@ extension AdManager: FullScreenContentDelegate {
     }
     
     func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
+        // Finish waiting for impression span if it's still active
+        if let waitingSpan = interstitialWaitingForImpressionSpan {
+            AdLifecycleTracker.shared.finishWaitingForImpression(span: waitingSpan)
+            interstitialWaitingForImpressionSpan = nil
+        } else if let waitingSpan = rewardedWaitingForImpressionSpan {
+            AdLifecycleTracker.shared.finishWaitingForImpression(span: waitingSpan)
+            rewardedWaitingForImpressionSpan = nil
+        }
+        
         // Track show failure
         if let transactionId = interstitialTransactionId {
             AdLifecycleTracker.shared.trackAdShowFailure(

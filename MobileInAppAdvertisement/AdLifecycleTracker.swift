@@ -146,6 +146,25 @@ class AdLifecycleTracker {
         span.finish()
     }
     
+    func startAdLoading(transactionId: String, adType: AdType, adUnitID: String) -> Span? {
+        guard let transaction = transactions[transactionId] else { return nil }
+        
+        let span = createSpan(
+            transaction: transaction,
+            event: .loading,
+            data: [
+                "ad_type": adType.rawValue,
+                "ad_unit_id": adUnitID
+            ]
+        )
+        
+        return span
+    }
+    
+    func finishAdLoading(span: Span) {
+        span.finish()
+    }
+    
     func trackAdLoadSuccess(transactionId: String, adType: AdType, adUnitID: String) {
         guard let transaction = transactions[transactionId] else { return }
         
@@ -350,28 +369,6 @@ class AdLifecycleTracker {
     
     // MARK: - Waiting Period Tracking
     
-    func startAdLoading(transactionId: String, adType: AdType, adUnitID: String) -> Span {
-        guard let transaction = transactions[transactionId] else { 
-            return SentrySDK.startTransaction(name: "fallback", operation: "fallback")
-        }
-        
-        let span = transaction.startChild(
-            operation: "ad_loading", 
-            description: "\(adType.rawValue.capitalized) ad loading from network"
-        )
-        
-        span.setData(value: adType.rawValue, key: "ad_type")
-        span.setData(value: adUnitID, key: "ad_unit_id")
-        span.setData(value: Date(), key: "start_time")
-        
-        return span
-    }
-    
-    func finishAdLoading(span: Span) {
-        span.setData(value: Date(), key: "end_time")
-        span.finish()
-    }
-    
     func startWaitingForImpression(transactionId: String, adType: AdType, adUnitID: String) -> Span {
         guard let transaction = transactions[transactionId] else { 
             return SentrySDK.startTransaction(name: "fallback", operation: "fallback")
@@ -386,12 +383,24 @@ class AdLifecycleTracker {
         span.setData(value: adUnitID, key: "ad_unit_id")
         span.setData(value: Date(), key: "start_time")
         
+        // Set a shorter timeout to finish the span if impression doesn't come within 10 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) {
+            if span.isFinished == false {
+                span.setData(value: "timeout", key: "finish_reason")
+                span.setData(value: Date(), key: "end_time")
+                span.finish()
+            }
+        }
+        
         return span
     }
     
     func finishWaitingForImpression(span: Span) {
-        span.setData(value: Date(), key: "end_time")
-        span.finish()
+        if span.isFinished == false {
+            span.setData(value: "impression_received", key: "finish_reason")
+            span.setData(value: Date(), key: "end_time")
+            span.finish()
+        }
     }
     
     func startWaitingForLoadSuccess(transactionId: String, adType: AdType, adUnitID: String) -> Span {
