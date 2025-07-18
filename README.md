@@ -20,7 +20,6 @@ This app serves as a demonstration of how to instrument mobile ad performance wi
 - **Battery Impact Monitoring** - Track device battery consumption during ad operations
 - **Ad Placement Timing** - Monitor when ads are shown during user journey
 - **Session Analytics** - Track user drop-off rates and session continuation
-- **Performance Impact Metrics** - Monitor frame rate and resource usage
 
 ## 🔧 Sentry Instrumentation
 
@@ -75,8 +74,6 @@ Each span includes rich metadata:
 
 ### Advanced Performance Metrics
 - **Battery Impact Percent** - Average battery consumption per ad type
-- **Frame Rate Impact** - Performance degradation during ad display
-- **Opt-Out/Opt-In Rates** - User privacy preference tracking
 - **Ad Placement Effectiveness** - Drop-off rates by placement type
 - **Session Continuation Rate** - Users who continue after seeing ads
 
@@ -103,29 +100,23 @@ Each span includes rich metadata:
    ```
 
 3. **Configure Sentry**
-   ```bash
-   cp sentry.properties.template sentry.properties
-   ```
+   The app is already configured with a Sentry DSN in `MobileInAppAdvertisementApp.swift`. If you want to use your own Sentry project:
    
-   Edit `sentry.properties` and add your Sentry configuration:
-   ```properties
-   org=your-organization-slug
-   project=your-project-slug
-   auth.token=your_auth_token_here
-   ```
-
-4. **Configure the App**
-   - Open `MobileInAppAdvertisement.xcodeproj` in Xcode
    - Edit `MobileInAppAdvertisementApp.swift`
    - Replace the DSN with your actual Sentry DSN
+   - Or create a `sentry.properties` file with your configuration
+
+4. **Build and Run**
+   - Open `MobileInAppAdvertisement.xcodeproj` in Xcode
    - Build and run the project
 
 ### Sentry DSN Configuration
-Get your DSN from your Sentry project settings:
+The app currently uses a hardcoded DSN for demonstration purposes. To use your own:
+
 1. Go to your Sentry project
 2. Navigate to Settings → Client Keys (DSN)
 3. Copy the DSN string
-4. Replace the DSN in the app
+4. Replace the DSN in `MobileInAppAdvertisementApp.swift`
 
 ## 📊 What You'll See in Sentry
 
@@ -168,18 +159,47 @@ ad.lifecycle - ad_lifecycle_interstitial (4.57m total)
 │   ├── MobileInAppAdvertisementApp.swift    # App entry point & Sentry config
 │   ├── ContentView.swift                    # Main UI & ad management
 │   ├── AdLifecycleTracker.swift             # Sentry performance tracking
+│   ├── Persistence.swift                    # Core Data persistence
 │   └── Assets.xcassets/                     # App assets
 ├── fastlane/                                # Build automation
+├── sentry.properties                        # Sentry configuration
 ├── sentry.properties.template               # Sentry config template
 └── README.md                               # This file
 ```
+
+## 🎮 How to Use the App
+
+### Testing Different Ad Scenarios
+
+1. **Working Ads (Default)**
+   - The app starts with working test ad unit IDs
+   - All ad types should load and display successfully
+   - Full lifecycle tracking will be visible in Sentry
+
+2. **Failing Ads (Toggle)**
+   - Use the "Use Failing Test Ads" toggle to test error scenarios
+   - This switches to invalid ad unit IDs that will fail to load
+   - Error tracking and failure spans will be visible in Sentry
+
+3. **Ad Types to Test**
+   - **Banner Ads**: Automatically load and display at the bottom
+   - **Interstitial Ads**: Click "Load Interstitial" then "Show Interstitial"
+   - **Rewarded Ads**: Click "Load Rewarded" then "Show Rewarded"
+
+### What to Expect in Sentry
+
+1. **Transactions**: One transaction per ad lifecycle
+2. **Spans**: Multiple spans per transaction showing each event
+3. **Data Attributes**: Rich metadata on each span
+4. **Battery Tracking**: Battery levels at each event (returns -1 on simulator)
+5. **Session Context**: Session duration and ad count information
 
 ## 🔒 Security & Privacy
 
 ### Safe for Public Repositories
 - ✅ Uses Google's test ad unit IDs (safe to share)
 - ✅ No real ad revenue or sensitive data
-- ✅ Sentry DSN is configurable (not hardcoded)
+- ✅ Sentry DSN is configurable (currently hardcoded for demo)
 - ✅ `.gitignore` excludes sensitive configuration files
 
 ### Data Collection
@@ -209,6 +229,20 @@ This app demonstrates several best practices for ad performance monitoring:
 5. **Resource Monitoring** - Track battery impact and performance degradation
 6. **Placement Optimization** - Monitor which ad placements work best
 7. **Session Analytics** - Track user behavior after seeing ads
+
+## 🚀 Build & Deployment
+
+### Local Development
+```bash
+# Install dependencies
+bundle install
+
+# Build the project
+xcodebuild -project MobileInAppAdvertisement.xcodeproj -scheme MobileInAppAdvertisement -destination 'platform=iOS Simulator,name=iPhone 16' build
+```
+
+### Fastlane Integration
+The project includes Fastlane for automated builds and deployments. See the `fastlane/` directory for configuration.
 
 ## 🤝 Contributing
 
