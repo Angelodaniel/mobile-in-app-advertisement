@@ -1,0 +1,14 @@
+# Sentry Configuration Template
+# Copy this file to sentry.properties and fill in your values
+
+# Your Sentry organization slug
+org=uprate
+
+# Your Sentry project slug
+project=mobile-in-app-advertisements
+
+# Your Sentry auth token (get this from Sentry dashboard)
+# auth.token=your_auth_token_here
+
+# Optional: URL for self-hosted Sentry
+# url=https://your-sentry-instance.com 
