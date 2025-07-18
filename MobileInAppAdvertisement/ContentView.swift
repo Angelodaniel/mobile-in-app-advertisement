@@ -7,9 +7,11 @@
 
 import SwiftUI
 import CoreData
+import GoogleMobileAds
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @StateObject private var adManager = AdManager()
 
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \Item.timestamp, ascending: true)],
@@ -18,19 +20,44 @@ struct ContentView: View {
 
     var body: some View {
         NavigationView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp!, formatter: itemFormatter)")
-                    } label: {
-                        Text(item.timestamp!, formatter: itemFormatter)
+            VStack {
+                // Banner Ad at the top
+                BannerAdView()
+                    .frame(height: 50)
+                
+                List {
+                    ForEach(items) { item in
+                        NavigationLink {
+                            ItemDetailView(item: item)
+                        } label: {
+                            HStack {
+                                Text(item.timestamp!, formatter: itemFormatter)
+                                Spacer()
+                                Button("Show Ad") {
+                                    adManager.showInterstitialAd()
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .disabled(!adManager.isInterstitialAdReady)
+                            }
+                        }
                     }
+                    .onDelete(perform: deleteItems)
                 }
-                .onDelete(perform: deleteItems)
+                
+                // Banner Ad at the bottom
+                BannerAdView()
+                    .frame(height: 50)
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     EditButton()
+                }
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Rewarded Ad") {
+                        adManager.showRewardedAd()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!adManager.isRewardedAdReady)
                 }
                 ToolbarItem {
                     Button(action: addItem) {
@@ -38,7 +65,9 @@ struct ContentView: View {
                     }
                 }
             }
-            Text("Select an item")
+            .onAppear {
+                adManager.loadAds()
+            }
         }
     }
 
@@ -50,10 +79,8 @@ struct ContentView: View {
             do {
                 try viewContext.save()
             } catch {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
                 let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
+                print("Error saving item: \(nsError), \(nsError.userInfo)")
             }
         }
     }
@@ -65,12 +92,125 @@ struct ContentView: View {
             do {
                 try viewContext.save()
             } catch {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
                 let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
+                print("Error deleting items: \(nsError), \(nsError.userInfo)")
             }
         }
+    }
+}
+
+struct ItemDetailView: View {
+    let item: Item
+    @StateObject private var adManager = AdManager()
+    
+    var body: some View {
+        VStack {
+            Text("Item Details")
+                .font(.title)
+            
+            Text("Created: \(item.timestamp!, formatter: itemFormatter)")
+                .padding()
+            
+            Button("Show Interstitial Ad") {
+                adManager.showInterstitialAd()
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(!adManager.isInterstitialAdReady)
+            .padding()
+            
+            Spacer()
+        }
+        .onAppear {
+            adManager.loadInterstitialAd()
+        }
+    }
+}
+
+struct BannerAdView: UIViewRepresentable {
+    func makeUIView(context: Context) -> GADBannerView {
+        let bannerView = GADBannerView(adSize: GADAdSizeBanner)
+        bannerView.adUnitID = AdConfiguration.bannerAdUnitID
+        bannerView.rootViewController = UIApplication.shared.windows.first?.rootViewController
+        bannerView.load(GADRequest())
+        return bannerView
+    }
+    
+    func updateUIView(_ uiView: GADBannerView, context: Context) {}
+}
+
+class AdManager: ObservableObject {
+    @Published var isInterstitialAdReady = false
+    @Published var isRewardedAdReady = false
+    
+    private var interstitialAd: GADInterstitialAd?
+    private var rewardedAd: GADRewardedAd?
+    
+    func loadAds() {
+        loadInterstitialAd()
+        loadRewardedAd()
+    }
+    
+    func loadInterstitialAd() {
+        let request = GADRequest()
+        GADInterstitialAd.load(
+            withAdUnitID: AdConfiguration.interstitialAdUnitID,
+            request: request
+        ) { [weak self] ad, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Failed to load interstitial ad: \(error.localizedDescription)")
+                    self?.isInterstitialAdReady = false
+                } else {
+                    self?.interstitialAd = ad
+                    self?.isInterstitialAdReady = true
+                }
+            }
+        }
+    }
+    
+    func showInterstitialAd() {
+        guard let interstitialAd = interstitialAd else { return }
+        
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first {
+            interstitialAd.present(fromRootViewController: window.rootViewController!)
+        }
+        
+        // Load the next ad
+        loadInterstitialAd()
+    }
+    
+    func loadRewardedAd() {
+        let request = GADRequest()
+        GADRewardedAd.load(
+            withAdUnitID: AdConfiguration.rewardedAdUnitID,
+            request: request
+        ) { [weak self] ad, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Failed to load rewarded ad: \(error.localizedDescription)")
+                    self?.isRewardedAdReady = false
+                } else {
+                    self?.rewardedAd = ad
+                    self?.isRewardedAdReady = true
+                }
+            }
+        }
+    }
+    
+    func showRewardedAd() {
+        guard let rewardedAd = rewardedAd else { return }
+        
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first {
+            rewardedAd.present(fromRootViewController: window.rootViewController!) {
+                // User earned reward
+                print("User earned reward!")
+            }
+        }
+        
+        // Load the next ad
+        loadRewardedAd()
     }
 }
 
