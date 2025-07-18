@@ -19,12 +19,19 @@ struct MobileInAppAdvertisementApp: App {
             options.dsn = "https://b72599749761ea6e64e6551475b56e21@o4508065179762768.ingest.de.sentry.io/4509434720485456"
             options.debug = true
             options.tracesSampleRate = 1.0 // 100% sampling
+            options.configureProfiling = {
+                $0.sessionSampleRate = 1.0
+                $0.lifecycle = .trace
+            }
         }
         
         // Initialize Google Mobile Ads
         MobileAds.shared.start { status in
             print("Google Mobile Ads initialization status: \(status)")
         }
+        
+        // Reset ad session tracking
+        AdLifecycleTracker.shared.resetSession()
     }
     
     public static func getSentryDSN() -> String {

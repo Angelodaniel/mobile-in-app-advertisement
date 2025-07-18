@@ -6,128 +6,90 @@
 //
 
 import SwiftUI
-import CoreData
 import GoogleMobileAds
 import Sentry
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject private var adManager = AdManager()
-
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \Item.timestamp, ascending: true)],
-        animation: .default)
-    private var items: FetchedResults<Item>
+    @State private var useFailingAds = false // Toggle for failing test ads
 
     var body: some View {
         NavigationView {
-            VStack {
-                // Banner Ad at the top
-                BannerAdView()
-                    .frame(height: 50)
-                
-                List {
-                    ForEach(items) { item in
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(item.timestamp!, formatter: itemFormatter)
-                                    .font(.headline)
-                                Text("Item \(item.timestamp!.timeIntervalSince1970)")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
+            List {
+                // Test Configuration Section
+                Section(header: Text("Test Configuration")) {
+                    HStack {
+                        Text("Use Failing Test Ads")
+                        Spacer()
+                        Toggle("", isOn: $useFailingAds)
+                            .onChange(of: useFailingAds) { oldValue, newValue in
+                                // Reload ads when toggle changes
+                                adManager.reloadAds(useFailingAds: newValue)
                             }
-                            
-                            Spacer()
-                            
-                            // Interstitial Ad Button
-                            Button("Show Ad") {
-                                adManager.showInterstitialAd()
-                            }
-                            .disabled(!adManager.isInterstitialAdReady)
-                            .buttonStyle(.borderedProminent)
-                            
-                            // Rewarded Ad Button
-                            Button("Reward") {
-                                adManager.showRewardedAd()
-                            }
-                            .disabled(!adManager.isRewardedAdReady)
-                            .buttonStyle(.bordered)
-                        }
-                    }
-                    .onDelete(perform: deleteItems)
-                }
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        EditButton()
-                    }
-                    ToolbarItem {
-                        Button(action: addItem) {
-                            Label("Add Item", systemImage: "plus")
-                        }
                     }
                 }
                 
-                // Banner Ad at the bottom
-                BannerAdView()
-                    .frame(height: 50)
+                // Banner Ad Section
+                Section(header: Text("Banner Ad")) {
+                    BannerAdView(useFailingAds: useFailingAds)
+                        .frame(height: 50)
+                        .padding(.vertical, 8)
+                }
+                
+                // Interstitial Ad Section
+                Section(header: Text("Interstitial Ad")) {
+                    HStack {
+                        Button("Load Interstitial") {
+                            adManager.loadInterstitialAd()
+                        }
+                        .disabled(adManager.isInterstitialAdReady)
+                        
+                        Spacer()
+                        
+                        Button("Show Interstitial") {
+                            adManager.showInterstitialAd()
+                        }
+                        .disabled(!adManager.isInterstitialAdReady)
+                    }
+                }
+                
+                // Rewarded Ad Section
+                Section(header: Text("Rewarded Ad")) {
+                    HStack {
+                        Button("Load Rewarded") {
+                            adManager.loadRewardedAd()
+                        }
+                        .disabled(adManager.isRewardedAdReady)
+                        
+                        Spacer()
+                        
+                        Button("Show Rewarded") {
+                            adManager.showRewardedAd()
+                        }
+                        .disabled(!adManager.isRewardedAdReady)
+                    }
+                }
             }
             .navigationTitle("Ad Performance Tracker")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Sentry DSN:")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text("https://b72599749761ea6e64e6551475b56e21@o4508065179762768.ingest.de.sentry.io/4509434720485456")
-                            .font(.caption2)
-                            .foregroundColor(.primary)
-                            .lineLimit(1)
-                    }
-                }
-            }
         }
-    }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(context: viewContext)
-            newItem.timestamp = Date()
-
-            do {
-                try viewContext.save()
-            } catch {
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-            }
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            offsets.map { items[$0] }.forEach(viewContext.delete)
-
-            do {
-                try viewContext.save()
-            } catch {
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-            }
-        }
-    }
-    
-    private func getSentryDSN() -> String {
-        // Get the DSN from the same method used in the app
-        return MobileInAppAdvertisementApp.getSentryDSN()
+        .navigationViewStyle(StackNavigationViewStyle())
     }
 }
 
 struct BannerAdView: UIViewRepresentable {
-    private let adUnitID = "ca-app-pub-3940256099942544/2934735716" // Test ad unit ID
+    private let workingAdUnitID = "ca-app-pub-3940256099942544/2934735716" // Working test ad unit ID
+    private let failingAdUnitID = "ca-app-pub-0000000000000000/0000000000" // Invalid ad unit ID that will definitely fail
+    
+    let useFailingAds: Bool
+    
+    private var currentAdUnitID: String {
+        return useFailingAds ? failingAdUnitID : workingAdUnitID
+    }
     
     func makeUIView(context: Context) -> BannerView {
         let bannerView = BannerView(adSize: AdSizeBanner)
-        bannerView.adUnitID = adUnitID
+        bannerView.adUnitID = currentAdUnitID
         
         // Use modern window access
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
@@ -140,7 +102,8 @@ struct BannerAdView: UIViewRepresentable {
         // Start ad lifecycle transaction
         let transactionId = AdLifecycleTracker.shared.startAdLifecycle(
             adType: .banner,
-            adUnitID: adUnitID
+            adUnitID: currentAdUnitID,
+            placement: .naturalBreak
         )
         
         // Set transaction ID on coordinator
@@ -150,7 +113,7 @@ struct BannerAdView: UIViewRepresentable {
         context.coordinator.loadingSpan = AdLifecycleTracker.shared.startAdLoading(
             transactionId: transactionId,
             adType: .banner,
-            adUnitID: adUnitID
+            adUnitID: currentAdUnitID
         )
         
         // Load the ad
@@ -159,7 +122,40 @@ struct BannerAdView: UIViewRepresentable {
         return bannerView
     }
     
-    func updateUIView(_ uiView: BannerView, context: Context) {}
+    func updateUIView(_ uiView: BannerView, context: Context) {
+        // Check if the ad unit ID has changed
+        let newAdUnitID = currentAdUnitID
+        if uiView.adUnitID != newAdUnitID {
+            // Finish any existing transaction
+            if let transactionId = context.coordinator.transactionId {
+                AdLifecycleTracker.shared.finishAdLifecycle(transactionId: transactionId)
+                context.coordinator.transactionId = nil
+            }
+            
+            // Update the ad unit ID
+            uiView.adUnitID = newAdUnitID
+            
+            // Start new ad lifecycle transaction
+            let transactionId = AdLifecycleTracker.shared.startAdLifecycle(
+                adType: .banner,
+                adUnitID: newAdUnitID,
+                placement: .naturalBreak
+            )
+            
+            // Set transaction ID on coordinator
+            context.coordinator.transactionId = transactionId
+            
+            // Start loading span
+            context.coordinator.loadingSpan = AdLifecycleTracker.shared.startAdLoading(
+                transactionId: transactionId,
+                adType: .banner,
+                adUnitID: newAdUnitID
+            )
+            
+            // Load the ad with new unit ID
+            uiView.load(Request())
+        }
+    }
     
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -186,7 +182,7 @@ struct BannerAdView: UIViewRepresentable {
                 AdLifecycleTracker.shared.trackAdLoadSuccess(
                     transactionId: transactionId,
                     adType: .banner,
-                    adUnitID: parent.adUnitID
+                    adUnitID: parent.currentAdUnitID
                 )
             }
         }
@@ -203,7 +199,7 @@ struct BannerAdView: UIViewRepresentable {
                 AdLifecycleTracker.shared.trackAdLoadFailure(
                     transactionId: transactionId,
                     adType: .banner,
-                    adUnitID: parent.adUnitID,
+                    adUnitID: parent.currentAdUnitID,
                     error: error
                 )
             }
@@ -215,7 +211,7 @@ struct BannerAdView: UIViewRepresentable {
                 AdLifecycleTracker.shared.trackAdImpression(
                     transactionId: transactionId,
                     adType: .banner,
-                    adUnitID: parent.adUnitID
+                    adUnitID: parent.currentAdUnitID
                 )
             }
         }
@@ -226,7 +222,7 @@ struct BannerAdView: UIViewRepresentable {
                 AdLifecycleTracker.shared.trackAdClick(
                     transactionId: transactionId,
                     adType: .banner,
-                    adUnitID: parent.adUnitID
+                    adUnitID: parent.currentAdUnitID
                 )
             }
         }
@@ -250,11 +246,51 @@ class AdManager: NSObject, ObservableObject {
     private var interstitialDisplayTimeSpan: Span?
     private var rewardedDisplayTimeSpan: Span?
     
-    private let interstitialAdUnitID = "ca-app-pub-3940256099942544/4411468910" // Test ad unit ID
-    private let rewardedAdUnitID = "ca-app-pub-3940256099942544/1712485313" // Test ad unit ID
+    // Working test ad unit IDs
+    private let workingInterstitialAdUnitID = "ca-app-pub-3940256099942544/4411468910"
+    private let workingRewardedAdUnitID = "ca-app-pub-3940256099942544/1712485313"
+    
+    // Failing test ad unit IDs (no fill)
+    private let failingInterstitialAdUnitID = "ca-app-pub-0000000000000000/0000000000" // Invalid ad unit ID
+    private let failingRewardedAdUnitID = "ca-app-pub-0000000000000000/0000000000" // Invalid ad unit ID
+    
+    private var useFailingAds = false
+    private var interstitialAdUnitID: String
+    private var rewardedAdUnitID: String
     
     override init() {
+        self.interstitialAdUnitID = workingInterstitialAdUnitID
+        self.rewardedAdUnitID = workingRewardedAdUnitID
         super.init()
+        loadInterstitialAd()
+        loadRewardedAd()
+    }
+    
+    func reloadAds(useFailingAds: Bool) {
+        self.useFailingAds = useFailingAds
+        
+        // Update ad unit IDs
+        interstitialAdUnitID = useFailingAds ? failingInterstitialAdUnitID : workingInterstitialAdUnitID
+        rewardedAdUnitID = useFailingAds ? failingRewardedAdUnitID : workingRewardedAdUnitID
+        
+        // Reset ad states
+        isInterstitialAdReady = false
+        isRewardedAdReady = false
+        interstitialAd = nil
+        rewardedAd = nil
+        
+        // Finish any existing transactions
+        if let interstitialTransactionId = interstitialTransactionId {
+            AdLifecycleTracker.shared.finishAdLifecycle(transactionId: interstitialTransactionId)
+            self.interstitialTransactionId = nil
+        }
+        
+        if let rewardedTransactionId = rewardedTransactionId {
+            AdLifecycleTracker.shared.finishAdLifecycle(transactionId: rewardedTransactionId)
+            self.rewardedTransactionId = nil
+        }
+        
+        // Reload ads with new unit IDs
         loadInterstitialAd()
         loadRewardedAd()
     }
@@ -263,7 +299,8 @@ class AdManager: NSObject, ObservableObject {
         // Start ad lifecycle transaction
         interstitialTransactionId = AdLifecycleTracker.shared.startAdLifecycle(
             adType: .interstitial,
-            adUnitID: interstitialAdUnitID
+            adUnitID: interstitialAdUnitID,
+            placement: .betweenLevels
         )
         
         // Start loading span with duration
@@ -347,7 +384,8 @@ class AdManager: NSObject, ObservableObject {
         // Start ad lifecycle transaction
         rewardedTransactionId = AdLifecycleTracker.shared.startAdLifecycle(
             adType: .rewarded,
-            adUnitID: rewardedAdUnitID
+            adUnitID: rewardedAdUnitID,
+            placement: .achievement
         )
         
         // Start loading span with duration
@@ -565,10 +603,3 @@ extension AdManager: FullScreenContentDelegate {
         }
     }
 }
-
-private let itemFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.dateStyle = .short
-    formatter.timeStyle = .medium
-    return formatter
-}()

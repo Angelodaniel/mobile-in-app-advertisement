@@ -8,6 +8,7 @@
 import Foundation
 import GoogleMobileAds
 import Sentry
+import UIKit // Added for UIDevice
 
 enum AdType: String {
     case banner = "banner"
@@ -15,9 +16,19 @@ enum AdType: String {
     case rewarded = "rewarded"
 }
 
+enum AdPlacement: String {
+    case appLaunch = "app_launch"
+    case betweenLevels = "between_levels"
+    case naturalBreak = "natural_break"
+    case achievement = "achievement"
+    case sessionEnd = "session_end"
+    case custom = "custom"
+}
+
 enum AdEvent: String {
     case request = "ad_request"
     case loadStart = "ad_load_start"
+    case loading = "ad_loading"
     case loadSuccess = "ad_load_success"
     case loadFailure = "ad_load_failure"
     case showStart = "ad_show_start"
@@ -30,7 +41,8 @@ enum AdEvent: String {
     case videoStart = "ad_video_start"
     case videoComplete = "ad_video_complete"
     case reward = "ad_reward"
-    case loading = "ad_loading"
+    case waitingForImpression = "ad_waiting_for_impression"
+    case waitingForLoadSuccess = "ad_waiting_for_load_success"
     case displayTime = "ad_display_time"
     case processing = "ad_processing"
 }
@@ -39,12 +51,40 @@ class AdLifecycleTracker {
     static let shared = AdLifecycleTracker()
     
     private var transactions: [String: Span] = [:]
+    private var sessionStartTime: Date = Date()
+    private var adsInSession: Int = 0
     
-    private init() {}
+    private init() {
+        // Enable battery monitoring
+        UIDevice.current.isBatteryMonitoringEnabled = true
+    }
     
-    func startAdLifecycle(adType: AdType, adUnitID: String) -> String {
-        let transaction = startAdTransaction(adType: adType, adUnitID: adUnitID)
-        let transactionId = "\(adType.rawValue)_\(adUnitID)_\(UUID().uuidString)"
+    func startAdLifecycle(adType: AdType, adUnitID: String, placement: AdPlacement) -> String {
+        let transactionId = UUID().uuidString
+        
+        // Get battery level at start
+        let startBatteryLevel = UIDevice.current.batteryLevel
+        
+        // Calculate session context
+        let sessionDuration = Date().timeIntervalSince(sessionStartTime)
+        adsInSession += 1
+        
+        let transaction = SentrySDK.startTransaction(
+            name: "ad_lifecycle_\(adType.rawValue)",
+            operation: "ad_lifecycle_\(adType.rawValue)"
+        )
+        
+        // Store start battery level and ad info
+        transaction.setData(value: startBatteryLevel, key: "start_battery_level")
+        transaction.setData(value: adType.rawValue, key: "ad_type")
+        transaction.setData(value: adUnitID, key: "ad_unit_id")
+        transaction.setData(value: placement.rawValue, key: "ad_placement")
+        transaction.setData(value: Date(), key: "start_time")
+        
+        // Add session context
+        transaction.setData(value: sessionDuration, key: "session_duration_seconds")
+        transaction.setData(value: adsInSession, key: "ads_in_session")
+        transaction.setData(value: sessionStartTime, key: "session_start_time")
         
         // Create initial request span
         let requestSpan = createSpan(
@@ -52,7 +92,10 @@ class AdLifecycleTracker {
             event: .request,
             data: [
                 "ad_type": adType.rawValue,
-                "ad_unit_id": adUnitID
+                "ad_unit_id": adUnitID,
+                "ad_placement": placement.rawValue,
+                "session_duration_seconds": sessionDuration,
+                "ads_in_session": adsInSession
             ]
         )
         requestSpan.finish()
@@ -77,10 +120,17 @@ class AdLifecycleTracker {
         return transaction
     }
     
-    private func createSpan(transaction: Span, event: AdEvent, data: [String: Any] = [:]) -> Span {
-        let span = transaction.startChild(operation: event.rawValue, description: getEventDescription(event: event, adType: data["ad_type"] as? String ?? "unknown"))
+    private func createSpan(transaction: Span, event: AdEvent, data: [String: Any]) -> Span {
+        let span = transaction.startChild(
+            operation: "ad_\(event.rawValue)",
+            description: getEventDescription(event: event, adType: data["ad_type"] as? String ?? "unknown")
+        )
         
-        // Add event data to span
+        // Add battery level to each span
+        let currentBatteryLevel = UIDevice.current.batteryLevel
+        span.setData(value: currentBatteryLevel, key: "battery_level")
+        
+        // Add event-specific data
         for (key, value) in data {
             span.setData(value: value, key: key)
         }
@@ -96,40 +146,114 @@ class AdLifecycleTracker {
     private func getEventDescription(event: AdEvent, adType: String) -> String {
         switch event {
         case .request:
-            return "Request \(adType) ad"
+            return "\(adType.capitalized) ad request"
         case .loadStart:
-            return "Start loading \(adType) ad"
-        case .loadSuccess:
-            return "\(adType.capitalized) ad loaded successfully"
-        case .loadFailure:
-            return "\(adType.capitalized) ad failed to load"
-        case .showStart:
-            return "Start showing \(adType) ad"
-        case .showSuccess:
-            return "\(adType.capitalized) ad shown successfully"
-        case .showFailure:
-            return "\(adType.capitalized) ad failed to show"
-        case .impression:
-            return "\(adType.capitalized) ad impression recorded"
-        case .click:
-            return "\(adType.capitalized) ad clicked"
-        case .dismiss:
-            return "\(adType.capitalized) ad dismissed"
-        case .exit:
-            return "\(adType.capitalized) ad exited"
-        case .videoStart:
-            return "\(adType.capitalized) ad video started"
-        case .videoComplete:
-            return "\(adType.capitalized) ad video completed"
-        case .reward:
-            return "\(adType.capitalized) ad reward earned"
+            return "\(adType.capitalized) ad load start"
         case .loading:
-            return "\(adType.capitalized) ad loading from network"
+            return "\(adType.capitalized) ad loading"
+        case .loadSuccess:
+            return "\(adType.capitalized) ad load success"
+        case .loadFailure:
+            return "\(adType.capitalized) ad load failure"
+        case .showStart:
+            return "\(adType.capitalized) ad show start"
+        case .showSuccess:
+            return "\(adType.capitalized) ad show success"
+        case .showFailure:
+            return "\(adType.capitalized) ad show failure"
+        case .impression:
+            return "\(adType.capitalized) ad impression"
+        case .click:
+            return "\(adType.capitalized) ad click"
+        case .dismiss:
+            return "\(adType.capitalized) ad dismiss"
+        case .exit:
+            return "\(adType.capitalized) ad exit"
+        case .videoStart:
+            return "\(adType.capitalized) ad video start"
+        case .videoComplete:
+            return "\(adType.capitalized) ad video complete"
+        case .reward:
+            return "\(adType.capitalized) ad reward"
+        case .waitingForImpression:
+            return "\(adType.capitalized) ad waiting for impression"
+        case .waitingForLoadSuccess:
+            return "\(adType.capitalized) ad waiting for load success"
         case .displayTime:
-            return "\(adType.capitalized) ad displayed to user"
+            return "\(adType.capitalized) ad display time"
         case .processing:
-            return "\(adType.capitalized) ad processing time"
+            return "\(adType.capitalized) ad processing"
         }
+    }
+    
+    func finishAdLifecycle(transactionId: String) {
+        guard let transaction = transactions[transactionId] else { return }
+        
+        // Get battery level at finish
+        let endBatteryLevel = UIDevice.current.batteryLevel
+        
+        // Calculate battery impact percentage
+        let startBatteryLevel = transaction.data["start_battery_level"] as? Float ?? 0.0
+        let batteryImpactPercent = startBatteryLevel > 0 ? ((startBatteryLevel - endBatteryLevel) / startBatteryLevel) * 100.0 : 0.0
+        
+        // Calculate session continuation
+        let sessionDuration = Date().timeIntervalSince(sessionStartTime)
+        let adsInSession = transaction.data["ads_in_session"] as? Int ?? 0
+        
+        // Add battery impact data to transaction
+        transaction.setData(value: endBatteryLevel, key: "end_battery_level")
+        transaction.setData(value: batteryImpactPercent, key: "battery_impact_percent")
+        transaction.setData(value: Date(), key: "end_time")
+        
+        // Add placement performance data
+        transaction.setData(value: sessionDuration, key: "total_session_duration_seconds")
+        transaction.setData(value: adsInSession, key: "total_ads_in_session")
+        
+        transaction.finish()
+        transactions.removeValue(forKey: transactionId)
+    }
+    
+    func trackUserDropOff(transactionId: String, timeAfterAd: TimeInterval) {
+        guard let transaction = transactions[transactionId] else { return }
+        
+        // Track user drop-off timing
+        transaction.setData(value: timeAfterAd, key: "time_to_drop_off_seconds")
+        transaction.setData(value: true, key: "user_dropped_off")
+        
+        // Create drop-off span
+        let dropOffSpan = createSpan(
+            transaction: transaction,
+            event: .exit,
+            data: [
+                "time_after_ad_seconds": timeAfterAd,
+                "drop_off_reason": "user_exit"
+            ]
+        )
+        dropOffSpan.finish()
+    }
+    
+    func trackSessionContinuation(transactionId: String, timeAfterAd: TimeInterval) {
+        guard let transaction = transactions[transactionId] else { return }
+        
+        // Track session continuation
+        transaction.setData(value: timeAfterAd, key: "time_to_next_action_seconds")
+        transaction.setData(value: false, key: "user_dropped_off")
+        
+        // Create continuation span
+        let continuationSpan = createSpan(
+            transaction: transaction,
+            event: .processing,
+            data: [
+                "time_after_ad_seconds": timeAfterAd,
+                "session_continued": true
+            ]
+        )
+        continuationSpan.finish()
+    }
+    
+    func resetSession() {
+        sessionStartTime = Date()
+        adsInSession = 0
     }
     
     func trackAdLoadStart(transactionId: String, adType: AdType, adUnitID: String) {
