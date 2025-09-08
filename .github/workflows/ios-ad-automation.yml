@@ -57,7 +57,7 @@ jobs:
         # List available runtimes first
         xcrun simctl list runtimes
         # Create a new simulator for testing
-        xcrun simctl create "AdTestSimulator" "iPhone 16" "iOS 18.2"
+        xcrun simctl create "AdTestSimulator" "iPhone 16" "iOS 18.4"
         
     - name: Build iOS App
       run: |

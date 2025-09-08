@@ -42,7 +42,7 @@ platform :ios do
     create_simulator(
       name: simulator_name,
       device_type: "iPhone 16",
-      os_version: "18.2"
+      os_version: "18.4"
     )
     
     # Build and install app
@@ -133,11 +133,29 @@ platform :ios do
       UI.success("Created simulator: #{simulator_name} with iOS #{os_version}")
     rescue => ex
       UI.error("Failed to create simulator with iOS #{os_version}: #{ex.message}")
-      UI.message("Trying with latest available iOS version...")
+      UI.message("Trying with available iOS versions...")
       
-      # Fallback to latest available iOS version
-      sh("xcrun simctl create '#{simulator_name}' '#{device_type}' 'iOS'")
-      UI.success("Created simulator: #{simulator_name} with latest iOS version")
+      # Try available iOS versions in order of preference
+      available_versions = ["18.6", "18.5", "18.4", "18.3", "18.1", "18.0"]
+      simulator_created = false
+      
+      available_versions.each do |version|
+        begin
+          UI.message("Trying iOS #{version}...")
+          sh("xcrun simctl create '#{simulator_name}' '#{device_type}' 'iOS #{version}'")
+          UI.success("Created simulator: #{simulator_name} with iOS #{version}")
+          simulator_created = true
+          break
+        rescue => version_ex
+          UI.message("iOS #{version} failed: #{version_ex.message}")
+          next
+        end
+      end
+      
+      unless simulator_created
+        UI.error("Failed to create simulator with any available iOS version")
+        raise "Could not create simulator with any available iOS version"
+      end
     end
   end
 
