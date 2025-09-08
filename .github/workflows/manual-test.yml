@@ -82,7 +82,9 @@ jobs:
         TEST_CYCLES: ${{ env.TEST_CYCLES }}
         AD_SCENARIOS: ${{ env.AD_SCENARIOS }}
       run: |
-        bundle exec fastlane continuous_ad_testing
+        # Use the basic iOS automation instead of Fastlane for now
+        chmod +x scripts/ios-ad-automation.sh
+        ./scripts/ios-ad-automation.sh "$TEST_DURATION" "$AD_SCENARIOS"
         
     - name: Generate summary
       run: |

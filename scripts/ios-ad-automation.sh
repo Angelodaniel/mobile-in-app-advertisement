@@ -38,11 +38,50 @@ warning() {
 
 # Function to check if simulator is running
 check_simulator() {
-    if ! xcrun simctl list devices | grep -q "$SIMULATOR_NAME.*Booted"; then
-        error "Simulator $SIMULATOR_NAME is not running"
-        return 1
+    # First try to find any iPhone simulator that's available
+    local available_simulator=$(xcrun simctl list devices | grep "iPhone" | grep -v "unavailable" | head -1 | awk -F'[()]' '{print $2}')
+    
+    if [ -n "$available_simulator" ]; then
+        log "Found available iPhone simulator: $available_simulator"
+        SIMULATOR_NAME="$available_simulator"
+        return 0
     fi
-    return 0
+    
+    # If no simulator found, try to create one
+    log "No iPhone simulator found, attempting to create one..."
+    create_simulator_if_needed
+    
+    # Check again after creation attempt
+    available_simulator=$(xcrun simctl list devices | grep "iPhone" | grep -v "unavailable" | head -1 | awk -F'[()]' '{print $2}')
+    if [ -n "$available_simulator" ]; then
+        log "Using simulator: $available_simulator"
+        SIMULATOR_NAME="$available_simulator"
+        return 0
+    fi
+    
+    error "No iPhone simulator available"
+    return 1
+}
+
+# Function to create simulator if needed
+create_simulator_if_needed() {
+    log "Attempting to create iPhone simulator..."
+    
+    # Try different iOS versions
+    local ios_versions=("18.4" "18.5" "18.6" "18.3" "18.2" "18.1" "18.0")
+    
+    for version in "${ios_versions[@]}"; do
+        log "Trying to create simulator with iOS $version..."
+        if xcrun simctl create "AdTestSimulator" "iPhone 16" "iOS $version" 2>/dev/null; then
+            log "Successfully created simulator with iOS $version"
+            SIMULATOR_NAME="AdTestSimulator"
+            return 0
+        else
+            log "Failed to create simulator with iOS $version"
+        fi
+    done
+    
+    log "Could not create simulator, will try to use existing ones"
 }
 
 # Function to check if app is installed

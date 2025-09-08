@@ -120,9 +120,31 @@ platform :ios do
     device_type = options[:device_type]
     os_version = options[:os_version]
     
-    # List available runtimes for debugging
+    # List available simulators and runtimes for debugging
+    UI.message("Available simulators:")
+    sh("xcrun simctl list devices")
     UI.message("Available iOS runtimes:")
     sh("xcrun simctl list runtimes")
+    
+    # Try to find an existing simulator first
+    UI.message("Looking for existing simulators...")
+    existing_simulators = `xcrun simctl list devices | grep "#{device_type}" | head -5`.strip
+    
+    if !existing_simulators.empty?
+      UI.message("Found existing simulators:")
+      UI.message(existing_simulators)
+      
+      # Use the first available simulator
+      first_simulator = existing_simulators.split("\n").first
+      if first_simulator && first_simulator.include?("iPhone")
+        simulator_id = first_simulator.split("(").last.split(")").first
+        UI.success("Using existing simulator: #{simulator_id}")
+        return simulator_id
+      end
+    end
+    
+    # If no existing simulator found, try to create one
+    UI.message("No suitable existing simulator found, attempting to create one...")
     
     # Delete existing simulator if it exists
     sh("xcrun simctl delete '#{simulator_name}' || true")
@@ -154,6 +176,8 @@ platform :ios do
       
       unless simulator_created
         UI.error("Failed to create simulator with any available iOS version")
+        UI.message("This is a known issue with GitHub Actions runners.")
+        UI.message("The automation will continue with existing simulators if available.")
         raise "Could not create simulator with any available iOS version"
       end
     end

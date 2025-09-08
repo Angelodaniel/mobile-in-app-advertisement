@@ -61,7 +61,9 @@ jobs:
         TEST_CYCLES: ${{ github.event.inputs.test_cycles || '3' }}
         AD_SCENARIOS: ${{ github.event.inputs.ad_scenarios || 'both' }}
       run: |
-        bundle exec fastlane continuous_ad_testing
+        # Use the basic iOS automation instead of Fastlane for now
+        chmod +x scripts/ios-ad-automation.sh
+        ./scripts/ios-ad-automation.sh "$TEST_DURATION" "$AD_SCENARIOS"
         
     - name: Generate Sentry report
       run: |
