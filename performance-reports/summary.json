@@ -1,0 +1,23 @@
+{
+  "test_run": {
+    "timestamp": "2025-09-08T11:21:04Z",
+    "scenario": "",
+    "duration_minutes": ,
+    "ios_version": "",
+    "device": "Test iPhone"
+  },
+  "expected_data": {
+    "transactions": "Multiple ad.lifecycle transactions",
+    "spans": "Complete ad lifecycle spans with timing data",
+    "attributes": "Rich metadata including ad_type, ad_unit_id, placement",
+    "errors": "Error spans for failed ad loads (if applicable)",
+    "performance": "Loading times, display duration, user interactions"
+  },
+  "sentry_queries": [
+    "transaction:ad.lifecycle",
+    "span:ad_load_success",
+    "span:ad_load_failure", 
+    "span:ad_impression",
+    "span:ad_click"
+  ]
+}

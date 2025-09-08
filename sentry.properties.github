@@ -1,0 +1,14 @@
+# Sentry Configuration for GitHub Actions
+# This file is used by GitHub Actions workflows
+
+# Your Sentry organization slug
+org=uprate
+
+# Your Sentry project slug
+project=mobile-in-app-advertisements
+
+# Your Sentry DSN (get this from your Sentry project settings)
+dsn=https://b72599749761ea6e64e6551475b56e21@o4508065179762768.ingest.de.sentry.io/4509434720485456
+
+# Environment for GitHub Actions
+environment=github-actions

@@ -16,8 +16,149 @@
 default_platform(:ios)
 
 platform :ios do
-  desc "Description of what the lane does"
-  lane :custom_lane do
-    # add actions here: https://docs.fastlane.tools/actions
+  desc "Build and test the app in simulator"
+  lane :build_and_test do
+    # Build the app
+    build_app(
+      scheme: "MobileInAppAdvertisement",
+      destination: "platform=iOS Simulator,name=iPhone 16,OS=latest"
+    )
+    
+    # Run tests
+    run_tests(
+      scheme: "MobileInAppAdvertisement",
+      destination: "platform=iOS Simulator,name=iPhone 16,OS=latest"
+    )
+  end
+
+  desc "Run ad performance automation"
+  lane :ad_automation do
+    # Parameters
+    test_duration = ENV["TEST_DURATION"] || "5"
+    ad_scenarios = ENV["AD_SCENARIOS"] || "both"
+    
+    # Create simulator
+    simulator_name = "AdTestSimulator"
+    create_simulator(
+      name: simulator_name,
+      device_type: "iPhone 16",
+      os_version: "18.5"
+    )
+    
+    # Build and install app
+    build_app(
+      scheme: "MobileInAppAdvertisement",
+      destination: "platform=iOS Simulator,name=#{simulator_name}",
+      configuration: "Debug"
+    )
+    
+    # Install app on simulator
+    install_app_on_simulator(
+      simulator_name: simulator_name,
+      app_path: lane_context[SharedValues::IPA_OUTPUT_PATH]
+    )
+    
+    # Launch app
+    launch_app_on_simulator(
+      simulator_name: simulator_name,
+      bundle_id: "com.angelodevoer.MobileInAppAdvertisement"
+    )
+    
+    # Run automation script
+    sh("chmod +x scripts/ios-ad-automation.sh")
+    sh("./scripts/ios-ad-automation.sh #{test_duration} #{ad_scenarios}")
+    
+    # Cleanup
+    delete_simulator(simulator_name: simulator_name)
+  end
+
+  desc "Run continuous ad testing for Sentry data generation"
+  lane :continuous_ad_testing do
+    # Run multiple test cycles
+    cycles = ENV["TEST_CYCLES"] || "3"
+    cycle_duration = ENV["CYCLE_DURATION"] || "10"
+    
+    cycles.to_i.times do |cycle|
+      UI.message("Running test cycle #{cycle + 1}/#{cycles}")
+      
+      ad_automation(
+        test_duration: cycle_duration,
+        ad_scenarios: "both"
+      )
+      
+      # Wait between cycles
+      sleep(60) unless cycle == cycles.to_i - 1
+    end
+  end
+
+  desc "Generate Sentry performance report"
+  lane :sentry_report do
+    # This lane can be extended to generate reports from Sentry API
+    UI.message("Check your Sentry dashboard for performance data")
+    UI.message("Look for transactions with operation 'ad.lifecycle'")
+  end
+
+  desc "Setup for CI/CD"
+  lane :ci_setup do
+    # Install dependencies
+    cocoapods(reepo_update: true) if File.exist?("Podfile")
+    
+    # Install Ruby dependencies
+    sh("bundle install")
+    
+    # Setup Sentry (if needed)
+    if File.exist?("sentry.properties")
+      UI.message("Sentry configuration found")
+    else
+      UI.message("No Sentry configuration found - using default")
+    end
+  end
+
+  # Helper lanes
+  private_lane :create_simulator do |options|
+    simulator_name = options[:name]
+    device_type = options[:device_type]
+    os_version = options[:os_version]
+    
+    # Delete existing simulator if it exists
+    sh("xcrun simctl delete '#{simulator_name}' || true")
+    
+    # Create new simulator
+    sh("xcrun simctl create '#{simulator_name}' '#{device_type}' '#{os_version}'")
+    
+    UI.success("Created simulator: #{simulator_name}")
+  end
+
+  private_lane :install_app_on_simulator do |options|
+    simulator_name = options[:simulator_name]
+    app_path = options[:app_path]
+    
+    # Boot simulator
+    sh("xcrun simctl boot '#{simulator_name}'")
+    
+    # Install app
+    sh("xcrun simctl install '#{simulator_name}' '#{app_path}'")
+    
+    UI.success("Installed app on simulator: #{simulator_name}")
+  end
+
+  private_lane :launch_app_on_simulator do |options|
+    simulator_name = options[:simulator_name]
+    bundle_id = options[:bundle_id]
+    
+    # Launch app
+    sh("xcrun simctl launch '#{simulator_name}' '#{bundle_id}'")
+    
+    UI.success("Launched app: #{bundle_id}")
+  end
+
+  private_lane :delete_simulator do |options|
+    simulator_name = options[:simulator_name]
+    
+    # Shutdown and delete simulator
+    sh("xcrun simctl shutdown '#{simulator_name}' || true")
+    sh("xcrun simctl delete '#{simulator_name}' || true")
+    
+    UI.success("Cleaned up simulator: #{simulator_name}")
   end
 end

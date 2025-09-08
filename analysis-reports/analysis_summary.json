@@ -1,0 +1,27 @@
+{
+  "analysis": {
+    "timestamp": "2025-09-08T11:21:04Z",
+    "test_files_analyzed":        1,
+    "report_files_analyzed":        0
+  },
+  "scenarios": {
+    "working_ads_tests":        0,
+    "failing_ads_tests":        0,
+    "mixed_tests":        0
+  },
+  "recommendations": [
+    "Verify data quality in Sentry dashboard",
+    "Set up performance alerts",
+    "Implement ad preloading",
+    "Add retry logic for failed loads",
+    "Create custom Sentry dashboards",
+    "Schedule regular performance reviews"
+  ],
+  "key_metrics": [
+    "Fill Rate: count(span:ad_load_success) / count(span:ad_request) * 100",
+    "Click-Through Rate: count(span:ad_click) / count(span:ad_impression) * 100",
+    "Video Completion Rate: count(span:ad_video_complete) / count(span:ad_show_start) * 100",
+    "Average Loading Time: avg(span.duration) WHERE span.op:ad_loading",
+    "Error Rate: count(span:ad_load_failure) / count(span:ad_request) * 100"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "test_run": {
+    "timestamp": "2025-09-08T11:17:47Z",
+    "scenario": "sample",
+    "duration_minutes": 5,
+    "ios_version": "18.5",
+    "device": "iPhone 16"
+  },
+  "expected_metrics": {
+    "fill_rate": "100%",
+    "click_through_rate": "Variable",
+    "video_completion_rate": "100%",
+    "average_loading_time": "1-3 seconds",
+    "display_duration": "5-10 seconds"
+  },
+  "sentry_queries": [
+    "transaction:ad.lifecycle",
+    "span:ad_load_success",
+    "span:ad_load_failure",
+    "span:ad_impression",
+    "span:ad_click"
+  ]
+}

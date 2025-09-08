@@ -1,0 +1,104 @@
+name: iOS Ad Performance Automation
+
+on:
+  schedule:
+    # Run every 6 hours to generate consistent data
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    # Allow manual triggering
+    inputs:
+      test_duration:
+        description: 'Test duration in minutes'
+        required: false
+        default: '5'
+        type: string
+      ad_scenarios:
+        description: 'Ad scenarios to test (working,failing,both)'
+        required: false
+        default: 'both'
+        type: choice
+        options:
+          - working
+          - failing
+          - both
+
+jobs:
+  ios-ad-automation:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.0'
+        bundler-cache: true
+        
+    - name: Install dependencies
+      run: |
+        bundle install
+        
+    - name: Set up Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+        
+    - name: Install iOS Simulator
+      run: |
+        xcrun simctl list runtimes
+        xcrun simctl list devices
+        
+    - name: Create iOS Simulator
+      run: |
+        # Create a new simulator for testing
+        xcrun simctl create "AdTestSimulator" "iPhone 16" "iOS 18.5"
+        
+    - name: Build iOS App
+      run: |
+        xcodebuild -project MobileInAppAdvertisement.xcodeproj \
+          -scheme MobileInAppAdvertisement \
+          -destination 'platform=iOS Simulator,name=AdTestSimulator' \
+          -configuration Debug \
+          build
+          
+    - name: Install App on Simulator
+      run: |
+        xcrun simctl install "AdTestSimulator" \
+          "$(xcodebuild -project MobileInAppAdvertisement.xcodeproj \
+            -scheme MobileInAppAdvertisement \
+            -destination 'platform=iOS Simulator,name=AdTestSimulator' \
+            -configuration Debug \
+            -showBuildSettings | grep -m 1 BUILT_PRODUCTS_DIR | sed 's/.*= //')/MobileInAppAdvertisement.app"
+            
+    - name: Start iOS Simulator
+      run: |
+        xcrun simctl boot "AdTestSimulator"
+        xcrun simctl launch "AdTestSimulator" "com.angelodevoer.MobileInAppAdvertisement"
+        
+    - name: Wait for App Launch
+      run: |
+        sleep 10
+        
+    - name: Run Ad Automation Script
+      run: |
+        chmod +x scripts/ios-ad-automation.sh
+        ./scripts/ios-ad-automation.sh "${{ github.event.inputs.test_duration || '5' }}" "${{ github.event.inputs.ad_scenarios || 'both' }}"
+        
+    - name: Collect Sentry Data
+      run: |
+        echo "Waiting for Sentry data to be sent..."
+        sleep 30
+        
+    - name: Generate Test Report
+      run: |
+        echo "## Ad Performance Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "Test completed at $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "Check your Sentry dashboard for performance data" >> $GITHUB_STEP_SUMMARY
+        
+    - name: Cleanup Simulator
+      if: always()
+      run: |
+        xcrun simctl shutdown "AdTestSimulator" || true
+        xcrun simctl delete "AdTestSimulator" || true

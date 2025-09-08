@@ -1,0 +1,100 @@
+name: Fastlane Ad Automation
+
+on:
+  schedule:
+    # Run every 4 hours for consistent data generation
+    - cron: '0 */4 * * *'
+  workflow_dispatch:
+    inputs:
+      test_duration:
+        description: 'Test duration in minutes'
+        required: false
+        default: '10'
+        type: string
+      test_cycles:
+        description: 'Number of test cycles'
+        required: false
+        default: '3'
+        type: string
+      ad_scenarios:
+        description: 'Ad scenarios to test'
+        required: false
+        default: 'both'
+        type: choice
+        options:
+          - working
+          - failing
+          - both
+
+jobs:
+  fastlane-automation:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.0'
+        bundler-cache: true
+        
+    - name: Set up Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+        
+    - name: Setup CI environment
+      run: |
+        bundle exec fastlane ci_setup
+        
+    - name: Run ad automation tests
+      env:
+        TEST_DURATION: ${{ github.event.inputs.test_duration || '10' }}
+        TEST_CYCLES: ${{ github.event.inputs.test_cycles || '3' }}
+        AD_SCENARIOS: ${{ github.event.inputs.ad_scenarios || 'both' }}
+      run: |
+        bundle exec fastlane continuous_ad_testing
+        
+    - name: Generate Sentry report
+      run: |
+        bundle exec fastlane sentry_report
+        
+    - name: Upload test artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-artifacts
+        path: |
+          /tmp/automation_report.txt
+          /tmp/final_screenshot.png
+          /tmp/app_logs.txt
+        retention-days: 7
+        
+    - name: Comment on PR (if applicable)
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          let report = '## Ad Performance Test Results\n\n';
+          
+          try {
+            const reportContent = fs.readFileSync('/tmp/automation_report.txt', 'utf8');
+            report += '```\n' + reportContent + '\n```\n\n';
+          } catch (error) {
+            report += 'Test completed. Check your Sentry dashboard for performance data.\n\n';
+          }
+          
+          report += '### Next Steps\n';
+          report += '- Review performance data in your Sentry dashboard\n';
+          report += '- Look for transactions with operation `ad.lifecycle`\n';
+          report += '- Check for any performance regressions\n';
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: report
+          });

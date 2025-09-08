@@ -1,0 +1,92 @@
+name: Manual Ad Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of test to run'
+        required: true
+        default: 'quick'
+        type: choice
+        options:
+          - quick
+          - comprehensive
+          - stress
+      duration:
+        description: 'Test duration in minutes'
+        required: false
+        default: '5'
+        type: string
+      scenarios:
+        description: 'Ad scenarios to test'
+        required: false
+        default: 'both'
+        type: choice
+        options:
+          - working
+          - failing
+          - both
+
+jobs:
+  manual-test:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.0'
+        bundler-cache: true
+        
+    - name: Set up Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+        
+    - name: Configure test parameters
+      run: |
+        case "${{ github.event.inputs.test_type }}" in
+          "quick")
+            echo "TEST_DURATION=5" >> $GITHUB_ENV
+            echo "TEST_CYCLES=1" >> $GITHUB_ENV
+            ;;
+          "comprehensive")
+            echo "TEST_DURATION=15" >> $GITHUB_ENV
+            echo "TEST_CYCLES=3" >> $GITHUB_ENV
+            ;;
+          "stress")
+            echo "TEST_DURATION=30" >> $GITHUB_ENV
+            echo "TEST_CYCLES=5" >> $GITHUB_ENV
+            ;;
+        esac
+        
+        echo "AD_SCENARIOS=${{ github.event.inputs.scenarios || 'both' }}" >> $GITHUB_ENV
+        echo "TEST_DURATION=${{ github.event.inputs.duration || '$TEST_DURATION' }}" >> $GITHUB_ENV
+        
+    - name: Setup CI environment
+      run: |
+        bundle exec fastlane ci_setup
+        
+    - name: Run ad automation
+      env:
+        TEST_DURATION: ${{ env.TEST_DURATION }}
+        TEST_CYCLES: ${{ env.TEST_CYCLES }}
+        AD_SCENARIOS: ${{ env.AD_SCENARIOS }}
+      run: |
+        bundle exec fastlane continuous_ad_testing
+        
+    - name: Generate summary
+      run: |
+        echo "## Manual Ad Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "**Test Type:** ${{ github.event.inputs.test_type }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Duration:** ${{ env.TEST_DURATION }} minutes" >> $GITHUB_STEP_SUMMARY
+        echo "**Cycles:** ${{ env.TEST_CYCLES }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Scenarios:** ${{ env.AD_SCENARIOS }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+        echo "1. Check your Sentry dashboard for performance data" >> $GITHUB_STEP_SUMMARY
+        echo "2. Look for transactions with operation \`ad.lifecycle\`" >> $GITHUB_STEP_SUMMARY
+        echo "3. Review performance spans and metrics" >> $GITHUB_STEP_SUMMARY

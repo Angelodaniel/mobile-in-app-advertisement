@@ -244,6 +244,144 @@ xcodebuild -project MobileInAppAdvertisement.xcodeproj -scheme MobileInAppAdvert
 ### Fastlane Integration
 The project includes Fastlane for automated builds and deployments. See the `fastlane/` directory for configuration.
 
+## 🤖 Automated Testing & Sentry Data Generation
+
+This project includes comprehensive automation for generating Sentry performance data automatically using GitHub Actions and Fastlane.
+
+### GitHub Actions Workflows
+
+#### 1. Automated Ad Performance Testing
+- **File**: `.github/workflows/ios-ad-automation.yml`
+- **Schedule**: Runs every 6 hours automatically
+- **Manual Trigger**: Available via GitHub Actions UI
+- **Features**:
+  - Creates iOS Simulator
+  - Builds and installs the app
+  - Simulates realistic ad interactions
+  - Tests both working and failing ad scenarios
+  - Generates performance data for Sentry
+
+#### 2. Fastlane-Powered Automation
+- **File**: `.github/workflows/fastlane-automation.yml`
+- **Schedule**: Runs every 4 hours
+- **Features**:
+  - Uses Fastlane for more robust automation
+  - Multiple test cycles for comprehensive data
+  - Better error handling and reporting
+  - Artifact collection for debugging
+
+#### 3. Manual Testing
+- **File**: `.github/workflows/manual-test.yml`
+- **Trigger**: Manual only
+- **Test Types**:
+  - **Quick**: 5 minutes, 1 cycle
+  - **Comprehensive**: 15 minutes, 3 cycles
+  - **Stress**: 30 minutes, 5 cycles
+
+### Local Automation
+
+#### Using Fastlane
+```bash
+# Run a single ad automation test
+bundle exec fastlane ad_automation
+
+# Run continuous testing (multiple cycles)
+TEST_CYCLES=3 CYCLE_DURATION=10 bundle exec fastlane continuous_ad_testing
+
+# Run with specific parameters
+TEST_DURATION=15 AD_SCENARIOS=working bundle exec fastlane ad_automation
+```
+
+#### Using the Automation Script Directly
+```bash
+# Make script executable
+chmod +x scripts/ios-ad-automation.sh
+
+# Run with default settings (5 minutes, both scenarios)
+./scripts/ios-ad-automation.sh
+
+# Run with custom duration and scenarios
+./scripts/ios-ad-automation.sh 10 working
+./scripts/ios-ad-automation.sh 15 both
+```
+
+### Automation Features
+
+#### Ad Interaction Simulation
+- **Banner Ads**: Automatically loads and displays
+- **Interstitial Ads**: Loads, shows, and dismisses
+- **Rewarded Ads**: Loads, shows video, and completes
+- **Failing Ads**: Tests error scenarios with invalid ad unit IDs
+- **User Behavior**: Random scrolling, tapping, and realistic interactions
+
+#### Sentry Data Generated
+- **Ad Lifecycle Transactions**: Complete tracking from request to completion
+- **Performance Spans**: Detailed timing for each ad event
+- **Error Tracking**: Failed ad loads and network issues
+- **Battery Impact**: Device resource consumption (simulator returns -1)
+- **User Experience Metrics**: Display time, interaction rates, drop-off tracking
+- **Session Analytics**: Ad count, session duration, continuation rates
+
+#### Test Scenarios
+1. **Working Ads**: Uses Google's test ad unit IDs for successful ad delivery
+2. **Failing Ads**: Uses invalid ad unit IDs to test error handling
+3. **Mixed Scenarios**: Tests both working and failing ads in sequence
+
+### Configuration
+
+#### Environment Variables
+- `TEST_DURATION`: Test duration in minutes (default: 5)
+- `TEST_CYCLES`: Number of test cycles (default: 3)
+- `AD_SCENARIOS`: Which scenarios to test (working/failing/both)
+- `CYCLE_DURATION`: Duration per cycle in minutes (default: 10)
+
+#### Customization
+You can customize the automation by:
+1. **Modifying the automation script** (`scripts/ios-ad-automation.sh`)
+2. **Adjusting Fastlane lanes** (`fastlane/Fastfile`)
+3. **Updating GitHub Actions workflows** (`.github/workflows/`)
+4. **Changing test parameters** via environment variables
+
+### Monitoring Results
+
+#### Sentry Dashboard
+After running automation, check your Sentry dashboard for:
+- **Performance → Transactions**: Look for `ad_lifecycle_*` transactions
+- **Performance → Spans**: Detailed timing for each ad event
+- **Issues**: Any errors or failures during testing
+- **Releases**: Performance data associated with test runs
+
+#### Key Metrics to Monitor
+- **Ad Load Success Rate**: Percentage of successful ad loads
+- **Average Loading Time**: Time to load ads from network
+- **Display Duration**: How long ads are shown to users
+- **User Interaction Rate**: Clicks and completions
+- **Error Distribution**: Types and frequency of ad failures
+- **Battery Impact**: Average battery consumption per ad type
+
+### Troubleshooting
+
+#### Common Issues
+1. **Simulator Creation Fails**: Ensure Xcode is properly installed
+2. **App Installation Fails**: Check bundle ID and build configuration
+3. **UI Automation Fails**: Verify simulator is running and app is launched
+4. **Sentry Data Missing**: Check Sentry DSN configuration and network connectivity
+
+#### Debug Mode
+Enable debug logging by setting environment variables:
+```bash
+export DEBUG=1
+export VERBOSE=1
+./scripts/ios-ad-automation.sh
+```
+
+#### Manual Verification
+To verify automation is working:
+1. Run a manual test via GitHub Actions
+2. Check the generated artifacts and logs
+3. Verify data appears in your Sentry dashboard
+4. Review the automation report for any issues
+
 ## 🤝 Contributing
 
 This is a demonstration project. Feel free to:

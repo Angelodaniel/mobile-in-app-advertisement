@@ -1,0 +1,59 @@
+{
+  "automation": {
+    "default_duration_minutes": 5,
+    "default_cycles": 3,
+    "default_scenarios": "both",
+    "simulator": {
+      "name": "AdTestSimulator",
+      "device_type": "iPhone 16",
+      "os_version": "18.5"
+    },
+    "app": {
+      "bundle_id": "com.angelodevoer.MobileInAppAdvertisement",
+      "scheme": "MobileInAppAdvertisement"
+    },
+    "ad_scenarios": {
+      "working": {
+        "banner_unit_id": "ca-app-pub-3940256099942544/2934735716",
+        "interstitial_unit_id": "ca-app-pub-3940256099942544/4411468910",
+        "rewarded_unit_id": "ca-app-pub-3940256099942544/1712485313"
+      },
+      "failing": {
+        "banner_unit_id": "ca-app-pub-0000000000000000/0000000000",
+        "interstitial_unit_id": "ca-app-pub-0000000000000000/0000000000",
+        "rewarded_unit_id": "ca-app-pub-0000000000000000/0000000000"
+      }
+    },
+    "ui_automation": {
+      "tap_coordinates": {
+        "load_interstitial": [200, 300],
+        "show_interstitial": [200, 350],
+        "load_rewarded": [200, 400],
+        "show_rewarded": [200, 450],
+        "failing_toggle": [300, 100]
+      },
+      "wait_times": {
+        "app_launch": 5,
+        "ad_load": 3,
+        "ad_show": 5,
+        "video_complete": 8,
+        "between_actions": 2
+      }
+    },
+    "sentry": {
+      "transaction_operation": "ad.lifecycle",
+      "transaction_prefix": "ad_lifecycle_",
+      "span_operations": [
+        "ad_request",
+        "ad_loading",
+        "ad_load_success",
+        "ad_load_failure",
+        "ad_show_start",
+        "ad_impression",
+        "ad_click",
+        "ad_dismiss",
+        "ad_video_complete"
+      ]
+    }
+  }
+}
