@@ -124,13 +124,14 @@ build_and_install_app() {
         -scheme MobileInAppAdvertisement \
         -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
         -configuration Debug \
+        -derivedDataPath ./DerivedData \
         build; then
         error "Failed to build the app"
         return 1
     fi
     
     # Find the built app
-    local app_path=$(find . -name "MobileInAppAdvertisement.app" -type d | head -1)
+    local app_path=$(find ./DerivedData -name "MobileInAppAdvertisement.app" -type d | head -1)
     if [ -z "$app_path" ]; then
         error "Could not find built app"
         return 1
