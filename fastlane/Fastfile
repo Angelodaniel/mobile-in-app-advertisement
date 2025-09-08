@@ -42,7 +42,7 @@ platform :ios do
     create_simulator(
       name: simulator_name,
       device_type: "iPhone 16",
-      os_version: "18.5"
+      os_version: "18.2"
     )
     
     # Build and install app
@@ -120,13 +120,25 @@ platform :ios do
     device_type = options[:device_type]
     os_version = options[:os_version]
     
+    # List available runtimes for debugging
+    UI.message("Available iOS runtimes:")
+    sh("xcrun simctl list runtimes")
+    
     # Delete existing simulator if it exists
     sh("xcrun simctl delete '#{simulator_name}' || true")
     
-    # Create new simulator
-    sh("xcrun simctl create '#{simulator_name}' '#{device_type}' '#{os_version}'")
-    
-    UI.success("Created simulator: #{simulator_name}")
+    # Try to create simulator with the specified version
+    begin
+      sh("xcrun simctl create '#{simulator_name}' '#{device_type}' 'iOS #{os_version}'")
+      UI.success("Created simulator: #{simulator_name} with iOS #{os_version}")
+    rescue => ex
+      UI.error("Failed to create simulator with iOS #{os_version}: #{ex.message}")
+      UI.message("Trying with latest available iOS version...")
+      
+      # Fallback to latest available iOS version
+      sh("xcrun simctl create '#{simulator_name}' '#{device_type}' 'iOS'")
+      UI.success("Created simulator: #{simulator_name} with latest iOS version")
+    end
   end
 
   private_lane :install_app_on_simulator do |options|
