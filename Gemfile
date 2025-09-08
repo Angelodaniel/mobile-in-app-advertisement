@@ -4,7 +4,10 @@
 
 source "https://rubygems.org"
 
-gem 'fastlane'
+ruby '3.1.0'
+
+gem 'fastlane', '~> 2.220'
+gem 'bundler', '~> 2.4'
 
 plugins_path = File.join(File.dirname(__FILE__), 'fastlane', 'Pluginfile')
 eval_gemfile(plugins_path) if File.exist?(plugins_path)
