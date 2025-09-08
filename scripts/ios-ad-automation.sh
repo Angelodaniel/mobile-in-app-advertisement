@@ -43,7 +43,7 @@ check_simulator() {
     
     # First, let's get the list of available destinations from xcodebuild
     log "Getting available xcodebuild destinations..."
-    local available_destinations=$(xcodebuild -project MobileInAppAdvertisement.xcodeproj -scheme MobileInAppAdvertisement -showdestinations 2>/dev/null | grep "iPhone" | head -1)
+    local available_destinations=$(xcodebuild -project MobileInAppAdvertisement.xcodeproj -scheme MobileInAppAdvertisement -showdestinations 2>/dev/null | grep "platform:iOS Simulator" | grep "iPhone" | head -1)
     
     if [ -n "$available_destinations" ]; then
         # Extract simulator name and ID from xcodebuild output
