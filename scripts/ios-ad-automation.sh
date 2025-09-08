@@ -10,6 +10,7 @@ set -e
 TEST_DURATION=${1:-5}  # Default 5 minutes
 AD_SCENARIOS=${2:-both}  # working, failing, or both
 SIMULATOR_NAME="AdTestSimulator"
+SIMULATOR_ID=""
 BUNDLE_ID="com.angelodevoer.MobileInAppAdvertisement"
 
 # Colors for output
@@ -38,12 +39,20 @@ warning() {
 
 # Function to check if simulator is running
 check_simulator() {
-    # First try to find any iPhone simulator that's available
-    local available_simulator=$(xcrun simctl list devices | grep "iPhone" | grep -v "unavailable" | head -1 | awk -F'[()]' '{print $2}')
+    log "Checking for available iPhone simulators..."
     
-    if [ -n "$available_simulator" ]; then
-        log "Found available iPhone simulator: $available_simulator"
-        SIMULATOR_NAME="$available_simulator"
+    # Get list of available simulators and parse them properly
+    local simulator_info=$(xcrun simctl list devices | grep "iPhone" | grep -v "unavailable" | head -1)
+    
+    if [ -n "$simulator_info" ]; then
+        # Extract simulator name and ID from the line
+        # Format: "iPhone 16 (0E573B10-C4F3-40D6-A8CB-08B18F25CE08) (Shutdown)"
+        local simulator_name=$(echo "$simulator_info" | awk -F'(' '{print $1}' | xargs)
+        local simulator_id=$(echo "$simulator_info" | awk -F'[()]' '{print $2}')
+        
+        log "Found available iPhone simulator: $simulator_name (ID: $simulator_id)"
+        SIMULATOR_NAME="$simulator_name"
+        SIMULATOR_ID="$simulator_id"
         return 0
     fi
     
@@ -52,10 +61,14 @@ check_simulator() {
     create_simulator_if_needed
     
     # Check again after creation attempt
-    available_simulator=$(xcrun simctl list devices | grep "iPhone" | grep -v "unavailable" | head -1 | awk -F'[()]' '{print $2}')
-    if [ -n "$available_simulator" ]; then
-        log "Using simulator: $available_simulator"
-        SIMULATOR_NAME="$available_simulator"
+    simulator_info=$(xcrun simctl list devices | grep "iPhone" | grep -v "unavailable" | head -1)
+    if [ -n "$simulator_info" ]; then
+        local simulator_name=$(echo "$simulator_info" | awk -F'(' '{print $1}' | xargs)
+        local simulator_id=$(echo "$simulator_info" | awk -F'[()]' '{print $2}')
+        
+        log "Using simulator: $simulator_name (ID: $simulator_id)"
+        SIMULATOR_NAME="$simulator_name"
+        SIMULATOR_ID="$simulator_id"
         return 0
     fi
     
@@ -92,7 +105,7 @@ build_and_install_app() {
     log "Building iOS app..."
     if ! xcodebuild -project MobileInAppAdvertisement.xcodeproj \
         -scheme MobileInAppAdvertisement \
-        -destination "platform=iOS Simulator,name=$SIMULATOR_NAME" \
+        -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
         -configuration Debug \
         build; then
         error "Failed to build the app"
@@ -110,7 +123,7 @@ build_and_install_app() {
     
     # Install the app
     log "Installing app on simulator..."
-    if ! xcrun simctl install "$SIMULATOR_NAME" "$app_path"; then
+    if ! xcrun simctl install "$SIMULATOR_ID" "$app_path"; then
         error "Failed to install app on simulator"
         return 1
     fi
@@ -122,7 +135,7 @@ build_and_install_app() {
 # Function to launch the app
 launch_app() {
     log "Launching app on simulator..."
-    if ! xcrun simctl launch "$SIMULATOR_NAME" "$BUNDLE_ID"; then
+    if ! xcrun simctl launch "$SIMULATOR_ID" "$BUNDLE_ID"; then
         error "Failed to launch app"
         return 1
     fi
@@ -135,16 +148,16 @@ launch_app() {
 check_app() {
     # First boot the simulator if it's shutdown
     log "Checking simulator state..."
-    local simulator_state=$(xcrun simctl list devices | grep "$SIMULATOR_NAME" | grep -o "Shutdown\|Booted")
+    local simulator_state=$(xcrun simctl list devices | grep "$SIMULATOR_ID" | grep -o "Shutdown\|Booted")
     
     if [ "$simulator_state" = "Shutdown" ]; then
         log "Simulator is shutdown, booting it..."
-        xcrun simctl boot "$SIMULATOR_NAME"
+        xcrun simctl boot "$SIMULATOR_ID"
         sleep 10  # Wait for simulator to boot
     fi
     
     # Check if app is installed
-    if ! xcrun simctl listapps "$SIMULATOR_NAME" | grep -q "$BUNDLE_ID"; then
+    if ! xcrun simctl listapps "$SIMULATOR_ID" | grep -q "$BUNDLE_ID"; then
         log "App $BUNDLE_ID is not installed on simulator, will install it"
         return 1
     fi
