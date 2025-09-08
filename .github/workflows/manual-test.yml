@@ -40,7 +40,6 @@ jobs:
       with:
         ruby-version: '3.1'
         bundler-cache: true
-        bundler-version: '2.4.0'
         
     - name: Set up Xcode
       uses: maxim-lobanov/setup-xcode@v1
