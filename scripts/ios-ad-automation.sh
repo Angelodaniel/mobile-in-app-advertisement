@@ -41,7 +41,24 @@ warning() {
 check_simulator() {
     log "Checking for available iPhone simulators..."
     
-    # Get list of available simulators and parse them properly
+    # First, let's get the list of available destinations from xcodebuild
+    log "Getting available xcodebuild destinations..."
+    local available_destinations=$(xcodebuild -project MobileInAppAdvertisement.xcodeproj -scheme MobileInAppAdvertisement -showdestinations 2>/dev/null | grep "iPhone" | head -1)
+    
+    if [ -n "$available_destinations" ]; then
+        # Extract simulator name and ID from xcodebuild output
+        # Format: "{ platform:iOS Simulator, arch:arm64, id:7A792E32-B159-474E-9815-4140411E029D, OS:18.5, name:iPhone 16 Pro }"
+        local simulator_name=$(echo "$available_destinations" | sed -n 's/.*name:\([^}]*\).*/\1/p' | xargs)
+        local simulator_id=$(echo "$available_destinations" | sed -n 's/.*id:\([^,]*\).*/\1/p' | xargs)
+        
+        log "Found compatible iPhone simulator: $simulator_name (ID: $simulator_id)"
+        SIMULATOR_NAME="$simulator_name"
+        SIMULATOR_ID="$simulator_id"
+        return 0
+    fi
+    
+    # Fallback to simctl if xcodebuild fails
+    log "Falling back to simctl list..."
     local simulator_info=$(xcrun simctl list devices | grep "iPhone" | grep -v "unavailable" | head -1)
     
     if [ -n "$simulator_info" ]; then
