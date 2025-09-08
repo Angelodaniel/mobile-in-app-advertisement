@@ -84,10 +84,68 @@ create_simulator_if_needed() {
     log "Could not create simulator, will try to use existing ones"
 }
 
+# Function to build and install the app
+build_and_install_app() {
+    log "Building and installing the app..."
+    
+    # Build the app
+    log "Building iOS app..."
+    if ! xcodebuild -project MobileInAppAdvertisement.xcodeproj \
+        -scheme MobileInAppAdvertisement \
+        -destination "platform=iOS Simulator,name=$SIMULATOR_NAME" \
+        -configuration Debug \
+        build; then
+        error "Failed to build the app"
+        return 1
+    fi
+    
+    # Find the built app
+    local app_path=$(find . -name "MobileInAppAdvertisement.app" -type d | head -1)
+    if [ -z "$app_path" ]; then
+        error "Could not find built app"
+        return 1
+    fi
+    
+    log "Found app at: $app_path"
+    
+    # Install the app
+    log "Installing app on simulator..."
+    if ! xcrun simctl install "$SIMULATOR_NAME" "$app_path"; then
+        error "Failed to install app on simulator"
+        return 1
+    fi
+    
+    success "App installed successfully"
+    return 0
+}
+
+# Function to launch the app
+launch_app() {
+    log "Launching app on simulator..."
+    if ! xcrun simctl launch "$SIMULATOR_NAME" "$BUNDLE_ID"; then
+        error "Failed to launch app"
+        return 1
+    fi
+    success "App launched successfully"
+    sleep 5  # Wait for app to start
+    return 0
+}
+
 # Function to check if app is installed
 check_app() {
+    # First boot the simulator if it's shutdown
+    log "Checking simulator state..."
+    local simulator_state=$(xcrun simctl list devices | grep "$SIMULATOR_NAME" | grep -o "Shutdown\|Booted")
+    
+    if [ "$simulator_state" = "Shutdown" ]; then
+        log "Simulator is shutdown, booting it..."
+        xcrun simctl boot "$SIMULATOR_NAME"
+        sleep 10  # Wait for simulator to boot
+    fi
+    
+    # Check if app is installed
     if ! xcrun simctl listapps "$SIMULATOR_NAME" | grep -q "$BUNDLE_ID"; then
-        error "App $BUNDLE_ID is not installed on simulator"
+        log "App $BUNDLE_ID is not installed on simulator, will install it"
         return 1
     fi
     return 0
@@ -300,7 +358,16 @@ main() {
     fi
     
     if ! check_app; then
-        error "App check failed"
+        log "App not found, building and installing..."
+        if ! build_and_install_app; then
+            error "Failed to build and install app"
+            exit 1
+        fi
+    fi
+    
+    # Launch the app
+    if ! launch_app; then
+        error "Failed to launch app"
         exit 1
     fi
     
