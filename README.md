@@ -1,92 +1,228 @@
 # Mobile In-App Advertisement Performance Tracker
 
-A SwiftUI iOS application that demonstrates comprehensive ad lifecycle performance tracking using Google Mobile Ads SDK and Sentry for detailed performance monitoring and error tracking.
+A comprehensive SwiftUI iOS application that demonstrates advanced ad lifecycle performance tracking using Google Mobile Ads SDK and Sentry for detailed performance monitoring, error tracking, and business intelligence.
 
-## 🎯 What This App Does
+## 🎯 Use Case & Business Value
 
-This app serves as a demonstration of how to instrument mobile ad performance with detailed lifecycle tracking. It includes:
+### The Problem
+Mobile app developers face significant challenges when integrating in-app advertisements:
 
-### Ad Types Supported
-- **Banner Ads** - Displayed at the bottom of the screen
-- **Interstitial Ads** - Full-screen ads that appear between app screens
-- **Rewarded Ads** - Video ads that users watch to earn rewards
+- **Revenue Loss**: Poor ad performance directly impacts revenue
+- **User Experience Issues**: Slow-loading or failing ads frustrate users
+- **Lack of Visibility**: Limited insights into ad performance and user behavior
+- **Optimization Blind Spots**: No data to identify performance bottlenecks
+- **Error Tracking Gaps**: Ad failures go unnoticed, affecting fill rates
 
-### Performance Tracking Features
-- **Complete Ad Lifecycle Monitoring** - Track every stage of ad delivery from request to completion
-- **Detailed Performance Spans** - Measure loading times, display duration, and user interaction
-- **Real-time Performance Data** - View performance metrics in Sentry's performance dashboard
-- **Error Tracking** - Monitor ad failures and network issues
-- **User Experience Metrics** - Track how long users interact with ads
-- **Battery Impact Monitoring** - Track device battery consumption during ad operations
-- **Ad Placement Timing** - Monitor when ads are shown during user journey
-- **Session Analytics** - Track user drop-off rates and session continuation
+### The Solution
+This app demonstrates how to instrument comprehensive ad performance tracking that provides:
 
-## 🔧 Sentry Instrumentation
+- **Complete Ad Lifecycle Visibility**: Track every stage from request to completion
+- **Performance Optimization Data**: Identify slow-loading ads and optimize placement
+- **Revenue Protection**: Monitor fill rates and error patterns
+- **User Experience Insights**: Track display times and user interactions
+- **Business Intelligence**: Battery impact, session analytics, and drop-off tracking
 
-The app implements comprehensive Sentry performance tracking with the following instrumentation:
+### Real-World Impact
+With proper ad performance tracking, you can:
+- **Increase Revenue**: Optimize ad placement and timing based on data
+- **Improve User Experience**: Reduce ad-related performance issues
+- **Reduce Churn**: Identify and fix ad-related user drop-offs
+- **Scale Confidently**: Monitor performance as your user base grows
 
-### Ad Lifecycle Transactions
-Each ad interaction creates a separate Sentry transaction with the following structure:
+## 🔧 Implementation & Instrumentation
 
+### Architecture Overview
+
+The app uses a sophisticated instrumentation pattern that creates a complete performance monitoring system:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Sentry Performance Layer                │
+├─────────────────────────────────────────────────────────────┤
+│  AdLifecycleTracker.swift - Core instrumentation logic    │
+│  ├── Transaction Management                               │
+│  ├── Span Creation & Timing                               │
+│  ├── Data Attribute Collection                            │
+│  └── Error Handling & Cleanup                            │
+├─────────────────────────────────────────────────────────────┤
+│  ContentView.swift - UI & Ad Integration                  │
+│  ├── Banner Ad Implementation                            │
+│  ├── Interstitial Ad Management                          │
+│  ├── Rewarded Ad Handling                                │
+│  └── Error Scenario Testing                              │
+├─────────────────────────────────────────────────────────────┤
+│  Google Mobile Ads SDK - Ad Serving                      │
+│  ├── Banner Ads                                          │
+│  ├── Interstitial Ads                                    │
+│  └── Rewarded Video Ads                                  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Core Instrumentation Components
+
+#### 1. AdLifecycleTracker.swift - The Performance Engine
+
+**Purpose**: Centralized performance tracking for all ad interactions
+
+**Key Features**:
+- **Transaction Management**: Creates and manages Sentry transactions for each ad lifecycle
+- **Span Hierarchy**: Builds detailed span trees showing complete ad flow
+- **Rich Metadata**: Collects comprehensive data attributes on every event
+- **Battery Monitoring**: Tracks device resource consumption
+- **Session Analytics**: Monitors user behavior and session continuation
+
+**Core Methods**:
+```swift
+// Start a complete ad lifecycle transaction
+func startAdLifecycle(adType: AdType, adUnitID: String, placement: AdPlacement) -> String
+
+// Create detailed spans for each ad event
+private func createSpan(transaction: Span, event: AdEvent, data: [String: Any]) -> Span
+
+// Track specific ad events with timing
+func trackAdLoadSuccess(transactionId: String, adType: AdType, adUnitID: String)
+func trackAdImpression(transactionId: String, adType: AdType, adUnitID: String)
+func trackAdDismiss(transactionId: String, adType: AdType, adUnitID: String)
+```
+
+#### 2. Sentry Integration - Performance Data Pipeline
+
+**Configuration** (MobileInAppAdvertisementApp.swift):
+```swift
+SentrySDK.start { options in
+    options.dsn = "YOUR_SENTRY_DSN"
+    options.debug = true
+    options.tracesSampleRate = 1.0 // 100% sampling for demo
+    options.configureProfiling = {
+        $0.sessionSampleRate = 1.0
+        $0.lifecycle = .trace
+    }
+}
+```
+
+**Transaction Structure**:
 ```
 ad.lifecycle - ad_lifecycle_[banner|interstitial|rewarded]
-├── ad_request - Request ad from network
-├── ad_loading - Network loading time (with actual duration)
-├── ad_load_success - Ad loaded successfully
-├── ad_waiting_for_impression - Time between load and user interaction
-├── ad_show_start - Start showing ad to user
-├── ad_impression - Ad impression recorded
-├── ad_display_time - Time ad is displayed to user
-├── ad_click - User clicked on ad (if applicable)
-├── ad_video_complete - Video completion (rewarded ads only)
-└── ad_dismiss - Ad dismissed by user
+├── ad_request (40ms) [battery_level: 0.85, ad_type: banner]
+├── ad_loading (2.1s) [battery_level: 0.84, duration: 2100ms]
+├── ad_load_success (0.07ms) [battery_level: 0.84]
+├── ad_waiting_for_impression (4.45m) [battery_level: 0.83]
+├── ad_show_start (0.15ms) [battery_level: 0.83]
+├── ad_impression (0.03ms) [battery_level: 0.82]
+├── ad_display_time (6.23s) [battery_level: 0.80]
+├── ad_click (0.05ms) [battery_level: 0.80] // if user clicks
+└── ad_dismiss (0.04ms) [battery_level: 0.80]
+[battery_impact_percent: 5.88%, session_duration: 1200s]
 ```
 
-### Performance Metrics Tracked
-- **Loading Performance** - Network request and ad loading times
-- **Display Duration** - How long ads are shown to users
-- **User Interaction** - Clicks, impressions, and completion rates
-- **Error Rates** - Failed ad loads and network issues
-- **Waiting Times** - Time between ad load and user interaction
-- **Battery Impact** - Percentage of battery consumed during ad operations
-- **Ad Placement Performance** - Which placements cause user drop-off
-- **Session Continuation** - Whether users continue using app after ads
+#### 3. Ad Type Implementations
 
-### Data Attributes
-Each span includes rich metadata:
-- Ad type (banner, interstitial, rewarded)
-- Ad unit ID
-- Ad placement context (app launch, between levels, natural break, etc.)
-- Timestamps for start/end events
-- Error details for failures
-- User interaction data
-- Battery levels at each event
-- Session duration and ad count
-- User drop-off indicators
+**Banner Ads** (ContentView.swift):
+- Automatic loading and display
+- Continuous impression tracking
+- Click interaction monitoring
+- Complete lifecycle from load to dismiss
 
-## 📊 Dashboard Metrics
+**Interstitial Ads**:
+- Load → Show → Dismiss cycle
+- Waiting period tracking
+- Display time measurement
+- User interaction monitoring
 
-### Core Ad Performance Metrics
-- **Fill Rate** - Count of `ad_load_success` spans / total ad requests
-- **Click-Through Rate (CTR)** - Count of `ad_click` spans / count of `ad_impression` spans
-- **Rewarded Video Completion Rate** - Count of `ad_video_complete` spans / count of `ad_show_start` spans for rewarded ads
-- **Ad Interaction Frequency** - Total ad interactions per user session
+**Rewarded Ads**:
+- Video completion tracking
+- Reward delivery monitoring
+- User engagement measurement
+- Session continuation analysis
 
-### Advanced Performance Metrics
-- **Battery Impact Percent** - Average battery consumption per ad type
-- **Ad Placement Effectiveness** - Drop-off rates by placement type
-- **Session Continuation Rate** - Users who continue after seeing ads
+### Data Attributes & Business Intelligence
 
-## 🚀 Setup Instructions
+Each span includes rich metadata for comprehensive analysis:
+
+#### Ad Performance Data
+- `ad_type`: banner, interstitial, rewarded
+- `ad_unit_id`: Ad unit identifier
+- `ad_placement`: app_launch, between_levels, natural_break, achievement
+- `session_duration_seconds`: How long the user session has been active
+- `ads_in_session`: Number of ads shown in current session
+
+#### Performance Metrics
+- `battery_level`: Device battery level at each event
+- `battery_impact_percent`: Percentage of battery consumed during ad operations
+- `duration`: Actual timing for loading and display operations
+- `timestamp`: Precise timing for each event
+
+#### User Experience Data
+- `time_to_drop_off_seconds`: How long before user leaves after seeing ad
+- `user_dropped_off`: Boolean indicating if user left after ad
+- `session_continued`: Whether user continued using app after ad
+- `time_to_next_action_seconds`: Time until next user action
+
+## 📊 Sentry Dashboard & Data Visualization
+
+### Live Demo Data
+
+**Sentry Organization**: [View Live Data](https://sentry.io/organizations/uprate/projects/mobile-in-app-advertisements/)
+
+**Key Queries to Try**:
+```sql
+-- Ad lifecycle transactions
+transaction:ad.lifecycle
+
+-- Banner ad performance
+transaction:ad.lifecycle AND ad_type:banner
+
+-- Failed ad loads
+span:ad_load_failure
+
+-- Performance metrics
+avg(span.duration) WHERE span.op:ad_loading
+```
+
+### Business Metrics Dashboard
+
+#### Revenue Protection Metrics
+- **Fill Rate**: `count(span:ad_load_success) / count(span:ad_request) * 100`
+- **Error Rate**: `count(span:ad_load_failure) / count(span:ad_request) * 100`
+- **Revenue Impact**: Track correlation between ad performance and user retention
+
+#### User Experience Metrics
+- **Click-Through Rate**: `count(span:ad_click) / count(span:ad_impression) * 100`
+- **Video Completion Rate**: `count(span:ad_video_complete) / count(span:ad_show_start) * 100`
+- **Display Duration**: Average time ads are shown to users
+- **User Drop-off Rate**: Users who leave after seeing ads
+
+#### Performance Optimization Metrics
+- **Average Loading Time**: `avg(span.duration) WHERE span.op:ad_loading`
+- **Battery Impact**: Average battery consumption per ad type
+- **Session Continuation**: Users who continue after seeing ads
+- **Ad Placement Effectiveness**: Performance by placement type
+
+### Sample Performance Trace
+
+```
+ad.lifecycle - ad_lifecycle_interstitial (4.57m total)
+├── ad_request (40ms) [battery_level: 0.85, placement: between_levels]
+├── ad_loading (2.1s) [battery_level: 0.84, network: wifi]
+├── ad_load_success (0.07ms) [battery_level: 0.84]
+├── ad_waiting_for_impression (4.45m) [battery_level: 0.83]
+├── ad_show_start (0.15ms) [battery_level: 0.83]
+├── ad_impression (0.03ms) [battery_level: 0.82]
+├── ad_display_time (6.23s) [battery_level: 0.80]
+└── ad_dismiss (0.04ms) [battery_level: 0.80]
+[battery_impact_percent: 5.88%, session_duration: 1200s, ads_in_session: 3]
+```
+
+## 🚀 How to Run It Yourself
 
 ### Prerequisites
 - Xcode 15.0+
 - iOS 18.5+
 - Ruby (for Fastlane)
 - Sentry account and project
-- Google AdMob account (optional - app uses test ad units)
+- Google AdMob account (optional - uses test ad units)
 
-### Installation
+### Quick Start
 
 1. **Clone the repository**
    ```bash
@@ -100,294 +236,189 @@ Each span includes rich metadata:
    ```
 
 3. **Configure Sentry**
-   The app is already configured with a Sentry DSN in `MobileInAppAdvertisementApp.swift`. If you want to use your own Sentry project:
-   
-   - Edit `MobileInAppAdvertisementApp.swift`
-   - Replace the DSN with your actual Sentry DSN
+   - Get your Sentry DSN from [Sentry.io](https://sentry.io)
+   - Replace the DSN in `MobileInAppAdvertisementApp.swift` (line 19)
    - Or create a `sentry.properties` file with your configuration
 
 4. **Build and Run**
-   - Open `MobileInAppAdvertisement.xcodeproj` in Xcode
-   - Build and run the project
+   ```bash
+   # Open in Xcode
+   open MobileInAppAdvertisement.xcodeproj
+   
+   # Or build from command line
+   xcodebuild -project MobileInAppAdvertisement.xcodeproj -scheme MobileInAppAdvertisement -destination 'platform=iOS Simulator,name=iPhone 16' build
+   ```
 
-### Sentry DSN Configuration
-The app currently uses a hardcoded DSN for demonstration purposes. To use your own:
+### Emerge Tools Distribution
 
-1. Go to your Sentry project
-2. Navigate to Settings → Client Keys (DSN)
-3. Copy the DSN string
-4. Replace the DSN in `MobileInAppAdvertisementApp.swift`
+**Download from Emerge**: [Get the App](https://emerge.tools/distribution/link/your-distribution-link)
 
-## 📊 What You'll See in Sentry
+This provides a pre-built version with:
+- All dependencies included
+- Sentry configuration ready
+- Test ad units configured
+- Performance monitoring active
 
-### Performance Dashboard
-- **Ad Lifecycle Transactions** - One transaction per ad interaction
-- **Detailed Spans** - Each ad event as a separate span with timing
-- **Performance Trends** - Loading times, display duration, and error rates
-- **User Experience Metrics** - How users interact with ads
-- **Battery Impact Analysis** - Device resource consumption patterns
-- **Ad Placement Performance** - Which placements work best
+### Testing Different Scenarios
 
-### Key Metrics to Monitor
-- **Ad Load Success Rate** - Percentage of successful ad loads
-- **Average Loading Time** - Time to load ads from network
-- **Display Duration** - How long ads are shown
-- **User Interaction Rate** - Clicks and completions
-- **Error Distribution** - Types and frequency of ad failures
-- **Battery Impact** - Average battery consumption per ad type
-- **User Drop-off Rate** - Users who leave after seeing ads
-- **Session Continuation** - Users who continue using the app
+#### 1. Working Ads (Default)
+- App starts with Google's test ad unit IDs
+- All ad types load and display successfully
+- Complete lifecycle tracking visible in Sentry
 
-### Sample Performance Trace
-```
-ad.lifecycle - ad_lifecycle_interstitial (4.57m total)
-├── ad_request (40ms) [battery_level: 0.85]
-├── ad_loading (2.1s) [battery_level: 0.84]
-├── ad_load_success (0.07ms) [battery_level: 0.84]
-├── ad_waiting_for_impression (4.45m) [battery_level: 0.83]
-├── ad_show_start (0.15ms) [battery_level: 0.83]
-├── ad_impression (0.03ms) [battery_level: 0.82]
-├── ad_display_time (6.23s) [battery_level: 0.80]
-└── ad_dismiss (0.04ms) [battery_level: 0.80]
-[battery_impact_percent: 5.88%]
-```
+#### 2. Failing Ads (Toggle)
+- Use "Use Failing Test Ads" toggle
+- Switches to invalid ad unit IDs
+- Tests error handling and failure tracking
+- Error spans visible in Sentry
 
-## 🏗️ Project Structure
+#### 3. Ad Types to Test
+- **Banner Ads**: Automatically load and display
+- **Interstitial Ads**: Click "Load Interstitial" → "Show Interstitial"
+- **Rewarded Ads**: Click "Load Rewarded" → "Show Rewarded"
 
-```
-├── MobileInAppAdvertisement/
-│   ├── MobileInAppAdvertisementApp.swift    # App entry point & Sentry config
-│   ├── ContentView.swift                    # Main UI & ad management
-│   ├── AdLifecycleTracker.swift             # Sentry performance tracking
-│   ├── Persistence.swift                    # Core Data persistence
-│   └── Assets.xcassets/                     # App assets
-├── fastlane/                                # Build automation
-├── sentry.properties                        # Sentry configuration
-├── sentry.properties.template               # Sentry config template
-└── README.md                               # This file
-```
+### What You'll See in Sentry
 
-## 🎮 How to Use the App
-
-### Testing Different Ad Scenarios
-
-1. **Working Ads (Default)**
-   - The app starts with working test ad unit IDs
-   - All ad types should load and display successfully
-   - Full lifecycle tracking will be visible in Sentry
-
-2. **Failing Ads (Toggle)**
-   - Use the "Use Failing Test Ads" toggle to test error scenarios
-   - This switches to invalid ad unit IDs that will fail to load
-   - Error tracking and failure spans will be visible in Sentry
-
-3. **Ad Types to Test**
-   - **Banner Ads**: Automatically load and display at the bottom
-   - **Interstitial Ads**: Click "Load Interstitial" then "Show Interstitial"
-   - **Rewarded Ads**: Click "Load Rewarded" then "Show Rewarded"
-
-### What to Expect in Sentry
-
-1. **Transactions**: One transaction per ad lifecycle
+1. **Transactions**: One `ad.lifecycle` transaction per ad interaction
 2. **Spans**: Multiple spans per transaction showing each event
 3. **Data Attributes**: Rich metadata on each span
-4. **Battery Tracking**: Battery levels at each event (returns -1 on simulator)
-5. **Session Context**: Session duration and ad count information
+4. **Performance Data**: Loading times, display duration, user interactions
+5. **Error Tracking**: Failed ad loads and network issues
+6. **Battery Impact**: Device resource consumption (returns -1 on simulator)
 
-## 🔒 Security & Privacy
+## 🔍 Code Deep Dive
 
-### Safe for Public Repositories
-- ✅ Uses Google's test ad unit IDs (safe to share)
-- ✅ No real ad revenue or sensitive data
-- ✅ Sentry DSN is configurable (currently hardcoded for demo)
-- ✅ `.gitignore` excludes sensitive configuration files
+### Key Implementation Patterns
 
-### Data Collection
-- **Performance Data Only** - No personal user information
-- **Ad Interaction Metrics** - Anonymous usage statistics
-- **Error Tracking** - Technical error details only
-- **Battery Monitoring** - Device resource usage (no personal data)
-- **No User Identifiers** - Completely anonymous tracking
+#### 1. Transaction Lifecycle Management
+```swift
+// Start transaction with rich metadata
+let transaction = SentrySDK.startTransaction(
+    name: "ad_lifecycle_\(adType.rawValue)",
+    operation: "ad.lifecycle_\(adType.rawValue)"
+)
 
-## 🧪 Testing
-
-The app uses Google's test ad unit IDs, so you can:
-- Test all ad types without real ad serving
-- Verify Sentry instrumentation works correctly
-- Debug performance tracking in real-time
-- Experiment with different ad scenarios
-- Test battery impact on iOS Simulator (returns -1) and real devices
-
-## 📈 Performance Monitoring Best Practices
-
-This app demonstrates several best practices for ad performance monitoring:
-
-1. **Granular Instrumentation** - Track each ad lifecycle stage separately
-2. **Real Duration Tracking** - Use start/finish spans for accurate timing
-3. **Rich Metadata** - Include ad type, unit ID, placement, and error details
-4. **User Experience Focus** - Track display time, interaction rates, and drop-off
-5. **Resource Monitoring** - Track battery impact and performance degradation
-6. **Placement Optimization** - Monitor which ad placements work best
-7. **Session Analytics** - Track user behavior after seeing ads
-
-## 🚀 Build & Deployment
-
-### Local Development
-```bash
-# Install dependencies
-bundle install
-
-# Build the project
-xcodebuild -project MobileInAppAdvertisement.xcodeproj -scheme MobileInAppAdvertisement -destination 'platform=iOS Simulator,name=iPhone 16' build
+// Add comprehensive data attributes
+transaction.setData(value: adType.rawValue, key: "ad_type")
+transaction.setData(value: adUnitID, key: "ad_unit_id")
+transaction.setData(value: placement.rawValue, key: "ad_placement")
+transaction.setData(value: Date(), key: "start_time")
 ```
 
-### Fastlane Integration
-The project includes Fastlane for automated builds and deployments. See the `fastlane/` directory for configuration.
-
-## 🤖 Automated Testing & Sentry Data Generation
-
-This project includes comprehensive automation for generating Sentry performance data automatically using GitHub Actions and Fastlane.
-
-### GitHub Actions Workflows
-
-#### 1. Automated Ad Performance Testing
-- **File**: `.github/workflows/ios-ad-automation.yml`
-- **Schedule**: Runs every 6 hours automatically
-- **Manual Trigger**: Available via GitHub Actions UI
-- **Features**:
-  - Creates iOS Simulator
-  - Builds and installs the app
-  - Simulates realistic ad interactions
-  - Tests both working and failing ad scenarios
-  - Generates performance data for Sentry
-
-#### 2. Fastlane-Powered Automation
-- **File**: `.github/workflows/fastlane-automation.yml`
-- **Schedule**: Runs every 4 hours
-- **Features**:
-  - Uses Fastlane for more robust automation
-  - Multiple test cycles for comprehensive data
-  - Better error handling and reporting
-  - Artifact collection for debugging
-
-#### 3. Manual Testing
-- **File**: `.github/workflows/manual-test.yml`
-- **Trigger**: Manual only
-- **Test Types**:
-  - **Quick**: 5 minutes, 1 cycle
-  - **Comprehensive**: 15 minutes, 3 cycles
-  - **Stress**: 30 minutes, 5 cycles
-
-### Local Automation
-
-#### Using Fastlane
-```bash
-# Run a single ad automation test
-bundle exec fastlane ad_automation
-
-# Run continuous testing (multiple cycles)
-TEST_CYCLES=3 CYCLE_DURATION=10 bundle exec fastlane continuous_ad_testing
-
-# Run with specific parameters
-TEST_DURATION=15 AD_SCENARIOS=working bundle exec fastlane ad_automation
+#### 2. Span Creation with Timing
+```swift
+private func createSpan(transaction: Span, event: AdEvent, data: [String: Any]) -> Span {
+    let span = transaction.startChild(
+        operation: "ad_\(event.rawValue)",
+        description: getEventDescription(event: event, adType: data["ad_type"] as? String ?? "unknown")
+    )
+    
+    // Add battery level to each span
+    let currentBatteryLevel = UIDevice.current.batteryLevel
+    span.setData(value: currentBatteryLevel, key: "battery_level")
+    
+    // Add event-specific data
+    for (key, value) in data {
+        span.setData(value: value, key: key)
+    }
+    
+    return span
+}
 ```
 
-#### Using the Automation Script Directly
-```bash
-# Make script executable
-chmod +x scripts/ios-ad-automation.sh
-
-# Run with default settings (5 minutes, both scenarios)
-./scripts/ios-ad-automation.sh
-
-# Run with custom duration and scenarios
-./scripts/ios-ad-automation.sh 10 working
-./scripts/ios-ad-automation.sh 15 both
+#### 3. Error Handling & Cleanup
+```swift
+func trackAdLoadFailure(transactionId: String, adType: AdType, adUnitID: String, error: Error) {
+    guard let transaction = transactions[transactionId] else { return }
+    
+    let span = createSpan(
+        transaction: transaction,
+        event: .loadFailure,
+        data: [
+            "ad_type": adType.rawValue,
+            "ad_unit_id": adUnitID,
+            "error": error.localizedDescription
+        ]
+    )
+    span.finish()
+    
+    // Finish transaction on load failure
+    transaction.finish()
+    transactions.removeValue(forKey: transactionId)
+}
 ```
 
-### Automation Features
+### Integration with Google Mobile Ads
 
-#### Ad Interaction Simulation
-- **Banner Ads**: Automatically loads and displays
-- **Interstitial Ads**: Loads, shows, and dismisses
-- **Rewarded Ads**: Loads, shows video, and completes
-- **Failing Ads**: Tests error scenarios with invalid ad unit IDs
-- **User Behavior**: Random scrolling, tapping, and realistic interactions
-
-#### Sentry Data Generated
-- **Ad Lifecycle Transactions**: Complete tracking from request to completion
-- **Performance Spans**: Detailed timing for each ad event
-- **Error Tracking**: Failed ad loads and network issues
-- **Battery Impact**: Device resource consumption (simulator returns -1)
-- **User Experience Metrics**: Display time, interaction rates, drop-off tracking
-- **Session Analytics**: Ad count, session duration, continuation rates
-
-#### Test Scenarios
-1. **Working Ads**: Uses Google's test ad unit IDs for successful ad delivery
-2. **Failing Ads**: Uses invalid ad unit IDs to test error handling
-3. **Mixed Scenarios**: Tests both working and failing ads in sequence
-
-### Configuration
-
-#### Environment Variables
-- `TEST_DURATION`: Test duration in minutes (default: 5)
-- `TEST_CYCLES`: Number of test cycles (default: 3)
-- `AD_SCENARIOS`: Which scenarios to test (working/failing/both)
-- `CYCLE_DURATION`: Duration per cycle in minutes (default: 10)
-
-#### Customization
-You can customize the automation by:
-1. **Modifying the automation script** (`scripts/ios-ad-automation.sh`)
-2. **Adjusting Fastlane lanes** (`fastlane/Fastfile`)
-3. **Updating GitHub Actions workflows** (`.github/workflows/`)
-4. **Changing test parameters** via environment variables
-
-### Monitoring Results
-
-#### Sentry Dashboard
-After running automation, check your Sentry dashboard for:
-- **Performance → Transactions**: Look for `ad_lifecycle_*` transactions
-- **Performance → Spans**: Detailed timing for each ad event
-- **Issues**: Any errors or failures during testing
-- **Releases**: Performance data associated with test runs
-
-#### Key Metrics to Monitor
-- **Ad Load Success Rate**: Percentage of successful ad loads
-- **Average Loading Time**: Time to load ads from network
-- **Display Duration**: How long ads are shown to users
-- **User Interaction Rate**: Clicks and completions
-- **Error Distribution**: Types and frequency of ad failures
-- **Battery Impact**: Average battery consumption per ad type
-
-### Troubleshooting
-
-#### Common Issues
-1. **Simulator Creation Fails**: Ensure Xcode is properly installed
-2. **App Installation Fails**: Check bundle ID and build configuration
-3. **UI Automation Fails**: Verify simulator is running and app is launched
-4. **Sentry Data Missing**: Check Sentry DSN configuration and network connectivity
-
-#### Debug Mode
-Enable debug logging by setting environment variables:
-```bash
-export DEBUG=1
-export VERBOSE=1
-./scripts/ios-ad-automation.sh
+#### Banner Ad Integration
+```swift
+func bannerViewDidReceiveAd(_ bannerView: BannerView) {
+    // Finish loading span
+    if let loadingSpan = loadingSpan {
+        AdLifecycleTracker.shared.finishAdLoading(span: loadingSpan)
+        self.loadingSpan = nil
+    }
+    
+    // Track load success
+    if let transactionId = transactionId {
+        AdLifecycleTracker.shared.trackAdLoadSuccess(
+            transactionId: transactionId,
+            adType: .banner,
+            adUnitID: parent.currentAdUnitID
+        )
+    }
+}
 ```
 
-#### Manual Verification
-To verify automation is working:
-1. Run a manual test via GitHub Actions
-2. Check the generated artifacts and logs
-3. Verify data appears in your Sentry dashboard
-4. Review the automation report for any issues
+#### Full-Screen Ad Integration
+```swift
+func adDidRecordImpression(_ ad: FullScreenPresentingAd) {
+    // Start display time span
+    if let transactionId = interstitialTransactionId {
+        interstitialDisplayTimeSpan = AdLifecycleTracker.shared.startAdDisplayTime(
+            transactionId: transactionId,
+            adType: .interstitial,
+            adUnitID: interstitialAdUnitID
+        )
+    }
+    
+    // Track impression
+    AdLifecycleTracker.shared.trackAdImpression(
+        transactionId: transactionId,
+        adType: .interstitial,
+        adUnitID: interstitialAdUnitID
+    )
+}
+```
+
+## 📈 Business Value & ROI
+
+### Revenue Impact
+- **Fill Rate Optimization**: Identify and fix ad loading issues
+- **User Retention**: Reduce ad-related user drop-offs
+- **Performance Optimization**: Improve ad placement timing
+- **Error Prevention**: Proactive monitoring of ad failures
+
+### User Experience Benefits
+- **Performance Monitoring**: Track and optimize ad loading times
+- **Battery Impact**: Monitor device resource consumption
+- **Session Analytics**: Understand user behavior patterns
+- **Error Recovery**: Implement better error handling
+
+### Development Efficiency
+- **Real-time Monitoring**: Immediate visibility into ad performance
+- **Data-Driven Decisions**: Use metrics to guide optimization
+- **Automated Testing**: Continuous performance validation
+- **Scalable Architecture**: Pattern works for any ad network
 
 ## 🤝 Contributing
 
-This is a demonstration project. Feel free to:
+This is a demonstration project showcasing best practices for mobile ad performance monitoring. Feel free to:
+
 - Fork and modify for your own ad tracking needs
 - Submit issues for bugs or improvements
 - Share your own instrumentation patterns
+- Use as a reference for Sentry integration
 
 ## 📄 License
 
@@ -395,4 +426,6 @@ Copyright (c) 2025 Angelo de Voer. All rights reserved.
 
 ---
 
-**Note**: This app is designed for educational and demonstration purposes. For production use, replace test ad unit IDs with your actual AdMob ad units and configure appropriate Sentry sampling rates. 
+**Ready to see it in action?** [Download from Emerge](itms-services://?action=download-manifest&url=https%3A%2F%2Finstall.emergetools.com%2Finstall%3FinstallId%3Dslnk_6op2T3Fb6Y2B-no-redirect) or [View Live Sentry Data](https://sentry.io/organizations/uprate/projects/mobile-in-app-advertisements/)
+
+**Questions?** Check out the [Sentry Documentation](https://docs.sentry.io/platforms/apple/) or open an issue in this repository.
