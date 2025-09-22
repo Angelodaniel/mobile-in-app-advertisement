@@ -11,7 +11,7 @@ TEST_DURATION=${1:-5}  # Default 5 minutes
 AD_SCENARIOS=${2:-both}  # working, failing, or both
 SIMULATOR_NAME="AdTestSimulator"
 SIMULATOR_ID=""
-BUNDLE_ID="com.angelodevoer.MobileInAppAdvertisement"
+BUNDLE_ID="uprate.MobileInAppAdvertisement"
 
 # Colors for output
 RED='\033[0;31m'

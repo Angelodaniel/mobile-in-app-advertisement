@@ -9,7 +9,7 @@
       "os_version": "18.4"
     },
     "app": {
-      "bundle_id": "com.angelodevoer.MobileInAppAdvertisement",
+      "bundle_id": "uprate.MobileInAppAdvertisement",
       "scheme": "MobileInAppAdvertisement"
     },
     "ad_scenarios": {

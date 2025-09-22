@@ -61,7 +61,7 @@ platform :ios do
     # Launch app
     launch_app_on_simulator(
       simulator_name: simulator_name,
-      bundle_id: "com.angelodevoer.MobileInAppAdvertisement"
+      bundle_id: "uprate.MobileInAppAdvertisement"
     )
     
     # Run automation script
