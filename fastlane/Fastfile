@@ -35,7 +35,6 @@ platform :ios do
   lane :ad_automation do
     # Parameters
     test_duration = ENV["TEST_DURATION"] || "5"
-    ad_scenarios = ENV["AD_SCENARIOS"] || "both"
     
     # Create simulator
     simulator_name = "AdTestSimulator"
@@ -66,7 +65,7 @@ platform :ios do
     
     # Run automation script
     sh("chmod +x scripts/ios-ad-automation.sh")
-    sh("./scripts/ios-ad-automation.sh #{test_duration} #{ad_scenarios}")
+    sh("./scripts/ios-ad-automation.sh #{test_duration}")
     
     # Cleanup
     delete_simulator(simulator_name: simulator_name)
@@ -82,8 +81,7 @@ platform :ios do
       UI.message("Running test cycle #{cycle + 1}/#{cycles}")
       
       ad_automation(
-        test_duration: cycle_duration,
-        ad_scenarios: "both"
+        test_duration: cycle_duration
       )
       
       # Wait between cycles

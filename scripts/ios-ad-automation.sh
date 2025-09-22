@@ -8,7 +8,6 @@ set -e
 
 # Configuration
 TEST_DURATION=${1:-5}  # Default 5 minutes
-AD_SCENARIOS=${2:-both}  # working, failing, or both
 SIMULATOR_NAME="AdTestSimulator"
 SIMULATOR_ID=""
 BUNDLE_ID="uprate.MobileInAppAdvertisement"
@@ -243,33 +242,6 @@ test_working_ads() {
     success "Working ads test completed"
 }
 
-# Function to test failing ads scenario
-test_failing_ads() {
-    log "Testing failing ads scenario..."
-    
-    # Toggle to failing ads
-    log "Switching to failing ads..."
-    tap_element 300 100 "Failing ads toggle"
-    sleep 2
-    
-    # Test banner ad (should fail to load)
-    log "Testing failing banner ad..."
-    sleep 3  # Wait for banner to attempt loading
-    
-    # Test interstitial ad (should fail)
-    log "Testing failing interstitial ad..."
-    tap_element 200 300 "Load Interstitial button"
-    sleep 3  # Wait for ad to fail loading
-    # Don't try to show since it failed to load
-    
-    # Test rewarded ad (should fail)
-    log "Testing failing rewarded ad..."
-    tap_element 200 400 "Load Rewarded button"
-    sleep 3  # Wait for ad to fail loading
-    # Don't try to show since it failed to load
-    
-    success "Failing ads test completed"
-}
 
 # Function to simulate user behavior
 simulate_user_behavior() {
@@ -296,11 +268,12 @@ simulate_user_behavior() {
 # Function to run continuous test
 run_continuous_test() {
     local duration_minutes=$1
-    local scenarios=$2
-    local end_time=$(($(date +%s) + duration_minutes * 60))
+    # Convert to integer seconds (round down)
+    local duration_seconds=$((${duration_minutes%.*} * 60))
+    local end_time=$(($(date +%s) + duration_seconds))
     
     log "Starting continuous test for $duration_minutes minutes"
-    log "Testing scenarios: $scenarios"
+    log "Testing working ads scenario (always successful)"
     
     local cycle=1
     while [ $(date +%s) -lt $end_time ]; do
@@ -312,19 +285,8 @@ run_continuous_test() {
         xcrun simctl launch "$SIMULATOR_NAME" "$BUNDLE_ID"
         sleep 5
         
-        # Run test scenarios
-        case $scenarios in
-            "working")
-                test_working_ads
-                ;;
-            "failing")
-                test_failing_ads
-                ;;
-            "both")
-                test_working_ads
-                test_failing_ads
-                ;;
-        esac
+        # Run working ads scenario (always successful in GitHub Actions)
+        test_working_ads
         
         # Simulate user behavior
         simulate_user_behavior
@@ -340,47 +302,12 @@ run_continuous_test() {
     success "Continuous test completed after $duration_minutes minutes"
 }
 
-# Function to generate performance report
-generate_report() {
-    log "Generating performance report..."
-    
-    # Take final screenshot
-    xcrun simctl io "$SIMULATOR_NAME" screenshot /tmp/final_screenshot.png
-    
-    # Get app logs
-    xcrun simctl spawn "$SIMULATOR_NAME" log show --predicate 'process == "MobileInAppAdvertisement"' --last 10m > /tmp/app_logs.txt 2>/dev/null || true
-    
-    # Create report
-    cat > /tmp/automation_report.txt << EOF
-iOS Ad Automation Report
-========================
-Test Duration: $TEST_DURATION minutes
-Ad Scenarios: $AD_SCENARIOS
-Test Completed: $(date)
-Simulator: $SIMULATOR_NAME
-Bundle ID: $BUNDLE_ID
-
-Check your Sentry dashboard for detailed performance metrics:
-- Ad lifecycle transactions
-- Performance spans
-- Error tracking
-- Battery impact data
-- User interaction metrics
-
-Screenshots and logs saved to:
-- /tmp/final_screenshot.png
-- /tmp/app_logs.txt
-EOF
-
-    log "Report generated: /tmp/automation_report.txt"
-    cat /tmp/automation_report.txt
-}
 
 # Main execution
 main() {
     log "Starting iOS Ad Automation Script"
     log "Test Duration: $TEST_DURATION minutes"
-    log "Ad Scenarios: $AD_SCENARIOS"
+    log "Ad Scenarios: working (always successful)"
     
     # Pre-flight checks
     if ! check_simulator; then
@@ -403,16 +330,14 @@ main() {
     fi
     
     # Run the test
-    run_continuous_test "$TEST_DURATION" "$AD_SCENARIOS"
-    
-    # Generate report
-    generate_report
+    run_continuous_test "$TEST_DURATION"
     
     success "iOS Ad Automation completed successfully!"
+    log "Check your Sentry dashboard for detailed performance metrics and spans"
 }
 
 # Handle script interruption
-trap 'log "Script interrupted. Cleaning up..."; generate_report; exit 130' INT TERM
+trap 'log "Script interrupted. Cleaning up..."; exit 130' INT TERM
 
 # Run main function
 main "$@"

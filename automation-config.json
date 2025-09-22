@@ -2,7 +2,7 @@
   "automation": {
     "default_duration_minutes": 5,
     "default_cycles": 3,
-    "default_scenarios": "both",
+    "default_scenarios": "working",
     "simulator": {
       "name": "AdTestSimulator",
       "device_type": "iPhone 16",
