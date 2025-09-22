@@ -12,27 +12,13 @@ import Sentry
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject private var adManager = AdManager()
-    @State private var useFailingAds = false // Toggle for failing test ads
 
     var body: some View {
         NavigationView {
             List {
-                // Test Configuration Section
-                Section(header: Text("Test Configuration")) {
-                    HStack {
-                        Text("Use Failing Test Ads")
-                        Spacer()
-                        Toggle("", isOn: $useFailingAds)
-                            .onChange(of: useFailingAds) { oldValue, newValue in
-                                // Reload ads when toggle changes
-                                adManager.reloadAds(useFailingAds: newValue)
-                            }
-                    }
-                }
-                
                 // Banner Ad Section
                 Section(header: Text("Banner Ad")) {
-                    BannerAdView(useFailingAds: useFailingAds)
+                    BannerAdView()
                         .frame(height: 50)
                         .padding(.vertical, 8)
                 }
@@ -78,18 +64,11 @@ struct ContentView: View {
 }
 
 struct BannerAdView: UIViewRepresentable {
-    private let workingAdUnitID = "ca-app-pub-3940256099942544/2934735716" // Working test ad unit ID
-    private let failingAdUnitID = "ca-app-pub-0000000000000000/0000000000" // Invalid ad unit ID that will definitely fail
-    
-    let useFailingAds: Bool
-    
-    private var currentAdUnitID: String {
-        return useFailingAds ? failingAdUnitID : workingAdUnitID
-    }
+    private let adUnitID = "ca-app-pub-3940256099942544/2934735716" // Test ad unit ID
     
     func makeUIView(context: Context) -> BannerView {
         let bannerView = BannerView(adSize: AdSizeBanner)
-        bannerView.adUnitID = currentAdUnitID
+        bannerView.adUnitID = adUnitID
         
         // Use modern window access
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
@@ -102,7 +81,7 @@ struct BannerAdView: UIViewRepresentable {
         // Start ad lifecycle transaction
         let transactionId = AdLifecycleTracker.shared.startAdLifecycle(
             adType: .banner,
-            adUnitID: currentAdUnitID,
+            adUnitID: adUnitID,
             placement: .naturalBreak
         )
         
@@ -113,7 +92,7 @@ struct BannerAdView: UIViewRepresentable {
         context.coordinator.loadingSpan = AdLifecycleTracker.shared.startAdLoading(
             transactionId: transactionId,
             adType: .banner,
-            adUnitID: currentAdUnitID
+            adUnitID: adUnitID
         )
         
         // Load the ad
@@ -123,38 +102,7 @@ struct BannerAdView: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: BannerView, context: Context) {
-        // Check if the ad unit ID has changed
-        let newAdUnitID = currentAdUnitID
-        if uiView.adUnitID != newAdUnitID {
-            // Finish any existing transaction
-            if let transactionId = context.coordinator.transactionId {
-                AdLifecycleTracker.shared.finishAdLifecycle(transactionId: transactionId)
-                context.coordinator.transactionId = nil
-            }
-            
-            // Update the ad unit ID
-            uiView.adUnitID = newAdUnitID
-            
-            // Start new ad lifecycle transaction
-            let transactionId = AdLifecycleTracker.shared.startAdLifecycle(
-                adType: .banner,
-                adUnitID: newAdUnitID,
-                placement: .naturalBreak
-            )
-            
-            // Set transaction ID on coordinator
-            context.coordinator.transactionId = transactionId
-            
-            // Start loading span
-            context.coordinator.loadingSpan = AdLifecycleTracker.shared.startAdLoading(
-                transactionId: transactionId,
-                adType: .banner,
-                adUnitID: newAdUnitID
-            )
-            
-            // Load the ad with new unit ID
-            uiView.load(Request())
-        }
+        // No updates needed since ad unit ID is fixed
     }
     
     func makeCoordinator() -> Coordinator {
@@ -182,7 +130,7 @@ struct BannerAdView: UIViewRepresentable {
                 AdLifecycleTracker.shared.trackAdLoadSuccess(
                     transactionId: transactionId,
                     adType: .banner,
-                    adUnitID: parent.currentAdUnitID
+                    adUnitID: parent.adUnitID
                 )
             }
         }
@@ -199,7 +147,7 @@ struct BannerAdView: UIViewRepresentable {
                 AdLifecycleTracker.shared.trackAdLoadFailure(
                     transactionId: transactionId,
                     adType: .banner,
-                    adUnitID: parent.currentAdUnitID,
+                    adUnitID: parent.adUnitID,
                     error: error
                 )
             }
@@ -211,7 +159,7 @@ struct BannerAdView: UIViewRepresentable {
                 AdLifecycleTracker.shared.trackAdImpression(
                     transactionId: transactionId,
                     adType: .banner,
-                    adUnitID: parent.currentAdUnitID
+                    adUnitID: parent.adUnitID
                 )
             }
         }
@@ -222,7 +170,7 @@ struct BannerAdView: UIViewRepresentable {
                 AdLifecycleTracker.shared.trackAdClick(
                     transactionId: transactionId,
                     adType: .banner,
-                    adUnitID: parent.currentAdUnitID
+                    adUnitID: parent.adUnitID
                 )
             }
         }
@@ -246,54 +194,16 @@ class AdManager: NSObject, ObservableObject {
     private var interstitialDisplayTimeSpan: Span?
     private var rewardedDisplayTimeSpan: Span?
     
-    // Working test ad unit IDs
-    private let workingInterstitialAdUnitID = "ca-app-pub-3940256099942544/4411468910"
-    private let workingRewardedAdUnitID = "ca-app-pub-3940256099942544/1712485313"
-    
-    // Failing test ad unit IDs (no fill)
-    private let failingInterstitialAdUnitID = "ca-app-pub-0000000000000000/0000000000" // Invalid ad unit ID
-    private let failingRewardedAdUnitID = "ca-app-pub-0000000000000000/0000000000" // Invalid ad unit ID
-    
-    private var useFailingAds = false
-    private var interstitialAdUnitID: String
-    private var rewardedAdUnitID: String
+    // Test ad unit IDs
+    private let interstitialAdUnitID = "ca-app-pub-3940256099942544/4411468910"
+    private let rewardedAdUnitID = "ca-app-pub-3940256099942544/1712485313"
     
     override init() {
-        self.interstitialAdUnitID = workingInterstitialAdUnitID
-        self.rewardedAdUnitID = workingRewardedAdUnitID
         super.init()
         loadInterstitialAd()
         loadRewardedAd()
     }
     
-    func reloadAds(useFailingAds: Bool) {
-        self.useFailingAds = useFailingAds
-        
-        // Update ad unit IDs
-        interstitialAdUnitID = useFailingAds ? failingInterstitialAdUnitID : workingInterstitialAdUnitID
-        rewardedAdUnitID = useFailingAds ? failingRewardedAdUnitID : workingRewardedAdUnitID
-        
-        // Reset ad states
-        isInterstitialAdReady = false
-        isRewardedAdReady = false
-        interstitialAd = nil
-        rewardedAd = nil
-        
-        // Finish any existing transactions
-        if let interstitialTransactionId = interstitialTransactionId {
-            AdLifecycleTracker.shared.finishAdLifecycle(transactionId: interstitialTransactionId)
-            self.interstitialTransactionId = nil
-        }
-        
-        if let rewardedTransactionId = rewardedTransactionId {
-            AdLifecycleTracker.shared.finishAdLifecycle(transactionId: rewardedTransactionId)
-            self.rewardedTransactionId = nil
-        }
-        
-        // Reload ads with new unit IDs
-        loadInterstitialAd()
-        loadRewardedAd()
-    }
     
     func loadInterstitialAd() {
         // Start ad lifecycle transaction

@@ -19,9 +19,9 @@
         "rewarded_unit_id": "ca-app-pub-3940256099942544/1712485313"
       },
       "failing": {
-        "banner_unit_id": "ca-app-pub-0000000000000000/0000000000",
-        "interstitial_unit_id": "ca-app-pub-0000000000000000/0000000000",
-        "rewarded_unit_id": "ca-app-pub-0000000000000000/0000000000"
+        "banner_unit_id": "",
+        "interstitial_unit_id": "",
+        "rewarded_unit_id": ""
       }
     },
     "ui_automation": {
