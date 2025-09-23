@@ -188,6 +188,14 @@ tap_element() {
     local description=$3
     
     log "Tapping $description at ($x, $y)"
+    
+    # Check if simulator is still running
+    local simulator_state=$(xcrun simctl list devices | grep "$SIMULATOR_ID" | grep -o "Shutdown\|Booted")
+    if [ "$simulator_state" = "Shutdown" ]; then
+        error "Simulator crashed during test - cannot tap $description"
+        return 1
+    fi
+    
     xcrun simctl io "$SIMULATOR_NAME" tap "$x" "$y"
     sleep 2
 }
@@ -221,23 +229,48 @@ test_working_ads() {
     # Wait for app to load
     sleep 5
     
+    # Verify app is still running
+    if ! xcrun simctl list devices | grep "$SIMULATOR_ID" | grep -q "Booted"; then
+        error "Simulator is not running - cannot test ads"
+        return 1
+    fi
+    
     # Test banner ad (should load automatically)
     log "Testing banner ad..."
     sleep 3  # Wait for banner to load
+    log "Banner ad test completed"
     
     # Test interstitial ad
     log "Testing interstitial ad..."
-    tap_element 200 300 "Load Interstitial button"
+    log "Tapping Load Interstitial button..."
+    if ! tap_element 200 300 "Load Interstitial button"; then
+        error "Failed to tap Load Interstitial button - simulator may have crashed"
+        return 1
+    fi
     sleep 3  # Wait for ad to load
-    tap_element 200 350 "Show Interstitial button"
+    log "Tapping Show Interstitial button..."
+    if ! tap_element 200 350 "Show Interstitial button"; then
+        error "Failed to tap Show Interstitial button - simulator may have crashed"
+        return 1
+    fi
     sleep 5  # Wait for ad to show and dismiss
+    log "Interstitial ad test completed"
     
     # Test rewarded ad
     log "Testing rewarded ad..."
-    tap_element 200 400 "Load Rewarded button"
+    log "Tapping Load Rewarded button..."
+    if ! tap_element 200 400 "Load Rewarded button"; then
+        error "Failed to tap Load Rewarded button - simulator may have crashed"
+        return 1
+    fi
     sleep 3  # Wait for ad to load
-    tap_element 200 450 "Show Rewarded button"
+    log "Tapping Show Rewarded button..."
+    if ! tap_element 200 450 "Show Rewarded button"; then
+        error "Failed to tap Show Rewarded button - simulator may have crashed"
+        return 1
+    fi
     sleep 8  # Wait for video to complete
+    log "Rewarded ad test completed"
     
     success "Working ads test completed"
 }
@@ -282,6 +315,15 @@ run_continuous_test() {
         # Reset app state
         xcrun simctl terminate "$SIMULATOR_NAME" "$BUNDLE_ID" 2>/dev/null || true
         sleep 2
+        
+        # Ensure simulator is still running
+        local simulator_state=$(xcrun simctl list devices | grep "$SIMULATOR_ID" | grep -o "Shutdown\|Booted")
+        if [ "$simulator_state" = "Shutdown" ]; then
+            log "Simulator shutdown detected, rebooting..."
+            xcrun simctl boot "$SIMULATOR_ID"
+            sleep 10
+        fi
+        
         xcrun simctl launch "$SIMULATOR_NAME" "$BUNDLE_ID"
         sleep 5
         
