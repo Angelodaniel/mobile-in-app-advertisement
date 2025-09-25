@@ -10,6 +10,12 @@
 #     https://docs.fastlane.tools/plugins/available-plugins
 #
 
+# Load environment variables from .env file
+if File.exist?("../.env")
+  require 'dotenv'
+  Dotenv.load("../.env")
+end
+
 # Uncomment the line if you want fastlane to automatically update itself
 # update_fastlane
 
@@ -30,6 +36,44 @@ platform :ios do
       destination: "platform=iOS Simulator,name=iPhone 16,OS=latest"
     )
   end
+
+  desc "Build app for release and upload debug symbols to Sentry"
+  lane :build_and_upload_dsyms do
+    # Build the app for release
+    build_app(
+      scheme: "MobileInAppAdvertisement",
+      configuration: "Release",
+      export_method: "app-store"
+    )
+    
+    # Upload debug symbols to Sentry
+    sentry_debug_files_upload(
+      auth_token: ENV["SENTRY_AUTH_TOKEN"],
+      org_slug: "uprate",
+      project_slug: "mobile-in-app-advertisements",
+      include_sources: true
+    )
+  end
+
+  desc "Build app and upload complete build to Sentry"
+  lane :build_and_upload_to_sentry do
+    # Build the app for release and create xcarchive
+    build_app(
+      scheme: "MobileInAppAdvertisement",
+      configuration: "Release",
+      export_method: "app-store",
+      archive_path: "./build/MobileInAppAdvertisement.xcarchive"
+    )
+    
+    # Upload complete build to Sentry
+    sentry_upload_build(
+      auth_token: ENV["SENTRY_AUTH_TOKEN"],
+      org_slug: "uprate",
+      project_slug: "mobile-in-app-advertisements",
+      xcarchive_path: "./build/MobileInAppAdvertisement.xcarchive"
+    )
+  end
+
 
   desc "Run ad performance automation"
   lane :ad_automation do
@@ -109,6 +153,32 @@ platform :ios do
       UI.message("Sentry configuration found")
     else
       UI.message("No Sentry configuration found - using default")
+    end
+  end
+
+  desc "CI/CD build with Sentry build upload"
+  lane :ci_build do
+    # Install dependencies
+    cocoapods(reepo_update: true) if File.exist?("Podfile")
+    
+    # Build the app for release and create xcarchive
+    build_app(
+      scheme: "MobileInAppAdvertisement",
+      configuration: "Release",
+      export_method: "app-store",
+      archive_path: "./build/MobileInAppAdvertisement.xcarchive"
+    )
+    
+    # Upload complete build to Sentry if auth token is available
+    if ENV["SENTRY_AUTH_TOKEN"]
+      sentry_upload_build(
+        auth_token: ENV["SENTRY_AUTH_TOKEN"],
+        org_slug: "uprate",
+        project_slug: "mobile-in-app-advertisements",
+        xcarchive_path: "./build/MobileInAppAdvertisement.xcarchive"
+      )
+    else
+      UI.message("SENTRY_AUTH_TOKEN not found - skipping build upload")
     end
   end
 
