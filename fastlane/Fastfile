@@ -22,38 +22,6 @@ end
 default_platform(:ios)
 
 platform :ios do
-  desc "Build and test the app in simulator"
-  lane :build_and_test do
-    # Build the app
-    build_app(
-      scheme: "MobileInAppAdvertisement",
-      destination: "platform=iOS Simulator,name=iPhone 16,OS=latest"
-    )
-    
-    # Run tests
-    run_tests(
-      scheme: "MobileInAppAdvertisement",
-      destination: "platform=iOS Simulator,name=iPhone 16,OS=latest"
-    )
-  end
-
-  desc "Build app for release and upload debug symbols to Sentry"
-  lane :build_and_upload_dsyms do
-    # Build the app for release
-    build_app(
-      scheme: "MobileInAppAdvertisement",
-      configuration: "Release",
-      export_method: "app-store"
-    )
-    
-    # Upload debug symbols to Sentry
-    sentry_debug_files_upload(
-      auth_token: ENV["SENTRY_AUTH_TOKEN"],
-      org_slug: "uprate",
-      project_slug: "mobile-in-app-advertisements",
-      include_sources: true
-    )
-  end
 
   desc "Build app and upload debug symbols to Sentry"
   lane :build_and_upload_to_sentry do
@@ -137,54 +105,6 @@ platform :ios do
     end
   end
 
-  desc "Generate Sentry performance report"
-  lane :sentry_report do
-    # This lane can be extended to generate reports from Sentry API
-    UI.message("Check your Sentry dashboard for performance data")
-    UI.message("Look for transactions with operation 'ad.lifecycle'")
-  end
-
-  desc "Setup for CI/CD"
-  lane :ci_setup do
-    # Install dependencies
-    cocoapods(reepo_update: true) if File.exist?("Podfile")
-    
-    # Install Ruby dependencies
-    sh("bundle install")
-    
-    # Setup Sentry (if needed)
-    if File.exist?("sentry.properties")
-      UI.message("Sentry configuration found")
-    else
-      UI.message("No Sentry configuration found - using default")
-    end
-  end
-
-  desc "CI/CD build with Sentry build upload"
-  lane :ci_build do
-    # Install dependencies
-    cocoapods(reepo_update: true) if File.exist?("Podfile")
-    
-    # Build the app for release and create xcarchive
-    build_app(
-      scheme: "MobileInAppAdvertisement",
-      configuration: "Release",
-      export_method: "app-store",
-      archive_path: "./build/MobileInAppAdvertisement.xcarchive"
-    )
-    
-    # Upload complete build to Sentry if auth token is available
-    if ENV["SENTRY_AUTH_TOKEN"]
-      sentry_upload_build(
-        auth_token: ENV["SENTRY_AUTH_TOKEN"],
-        org_slug: "uprate",
-        project_slug: "mobile-in-app-advertisements",
-        xcarchive_path: "./build/MobileInAppAdvertisement.xcarchive"
-      )
-    else
-      UI.message("SENTRY_AUTH_TOKEN not found - skipping build upload")
-    end
-  end
 
   desc "Upload build to Sentry with PR context"
   lane :upload_build_to_sentry do
