@@ -66,8 +66,10 @@ platform :ios do
       export_options: {
         method: "development",
         signingStyle: "automatic",
-        teamID: ENV["TEAM_ID"] # Add your team ID as environment variable
-      }
+        teamID: ENV["TEAM_ID"], # Add your team ID as environment variable
+        compileBitcode: false
+      },
+      xcargs: "CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM=#{ENV['TEAM_ID']}"
     )
     
     # Upload complete build to Sentry
