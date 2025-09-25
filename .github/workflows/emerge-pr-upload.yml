@@ -29,14 +29,8 @@ jobs:
           bundle config set --local path 'vendor/bundle'
           bundle install --jobs 4 --retry 3
 
-      - name: Install Emerge CLI
-        run: |
-          curl -L https://github.com/EmergeTools/cli/releases/latest/download/emerge-cli-macos.tar.gz | tar -xz
-          sudo mv emerge /usr/local/bin/
-          emerge --version
-
       - name: Build & upload iOS size analysis binary to Emerge Tools
-        run: bundle exec fastlane ios build_upload_emerge
+        run: bundle exec fastlane ios build_and_upload_to_sentry
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           CONFIGURATION: Release
