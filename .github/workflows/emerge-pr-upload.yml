@@ -38,7 +38,7 @@ jobs:
           SENTRY_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
       - name: Upload build to Sentry with PR context
-        run: bundle exec fastlane ios sentry_upload_build
+        run: bundle exec fastlane ios upload_build_to_sentry
         env:
           SENTRY_SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_SENTRY_AUTH_TOKEN }}
           GITHUB_PR_NUMBER: ${{ github.event_name == 'pull_request' && github.event.number || '' }}
