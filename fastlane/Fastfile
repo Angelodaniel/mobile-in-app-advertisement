@@ -189,9 +189,9 @@ platform :ios do
   desc "Upload build to Sentry with PR context"
   lane :upload_build_to_sentry do
     # Upload build to Sentry with detailed PR context
-    if ENV["SENTRY_SENTRY_AUTH_TOKEN"]
+    if ENV["SENTRY_AUTH_TOKEN"]
       sentry_upload_build(
-        auth_token: ENV['SENTRY_SENTRY_AUTH_TOKEN'],
+        auth_token: ENV['SENTRY_AUTH_TOKEN'],
         org_slug: 'uprate',
         project_slug: 'mobile-in-app-advertisements',
         pr_number: ENV['GITHUB_PR_NUMBER'],
@@ -202,7 +202,7 @@ platform :ios do
         log_level: 'debug'
       )
     else
-      UI.message("SENTRY_SENTRY_AUTH_TOKEN not found - skipping Sentry build upload")
+      UI.message("SENTRY_AUTH_TOKEN not found - skipping Sentry build upload")
     end
   end
 
