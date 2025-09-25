@@ -57,12 +57,16 @@ platform :ios do
 
   desc "Build app and upload complete build to Sentry"
   lane :build_and_upload_to_sentry do
-    # Build the app for release and create xcarchive
+    # Build the app for debug and create xcarchive
     build_app(
       scheme: "MobileInAppAdvertisement",
-      configuration: "Release",
-      export_method: "app-store",
-      archive_path: "./build/MobileInAppAdvertisement.xcarchive"
+      configuration: "Debug",
+      export_method: "development",
+      archive_path: "./build/MobileInAppAdvertisement.xcarchive",
+      export_options: {
+        method: "development",
+        signingStyle: "automatic"
+      }
     )
     
     # Upload complete build to Sentry
