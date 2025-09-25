@@ -113,8 +113,7 @@ platform :ios do
       scheme: "MobileInAppAdvertisement",
       configuration: "Debug",
       export_method: "development",
-      signingStyle: "automatic",
-      teamID: ENV["TEAM_ID"],
+      export_team_id: ENV["TEAM_ID"],
       archive_path: "./build/MobileInAppAdvertisement.xcarchive"
     )
 
