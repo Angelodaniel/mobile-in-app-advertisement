@@ -37,23 +37,7 @@ Build app for release and upload debug symbols to Sentry
 [bundle exec] fastlane ios build_and_upload_to_sentry
 ```
 
-Build app and upload complete build to Sentry
-
-### ios test_sentry_config
-
-```sh
-[bundle exec] fastlane ios test_sentry_config
-```
-
-Test Sentry configuration without building
-
-### ios test_dsym_upload
-
-```sh
-[bundle exec] fastlane ios test_dsym_upload
-```
-
-Test dSYM upload with existing build
+Build app and upload debug symbols to Sentry
 
 ### ios ad_automation
 
@@ -94,6 +78,14 @@ Setup for CI/CD
 ```
 
 CI/CD build with Sentry build upload
+
+### ios build_upload_emerge
+
+```sh
+[bundle exec] fastlane ios build_upload_emerge
+```
+
+Build and upload to Emerge Tools for size analysis
 
 ----
 
