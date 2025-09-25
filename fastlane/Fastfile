@@ -186,52 +186,23 @@ platform :ios do
     end
   end
 
-  desc "Build and upload to Emerge Tools for size analysis"
-  lane :build_upload_emerge do
-    # Build the app for release and create xcarchive
-    build_app(
-      scheme: "MobileInAppAdvertisement",
-      configuration: ENV["CONFIGURATION"] || "Release",
-      export_method: "app-store",
-      archive_path: "./build/MobileInAppAdvertisement.xcarchive"
-    )
-    
-    # Upload to Emerge Tools for size analysis
-    if ENV["EMERGE_API_TOKEN"]
-      UI.message("Uploading build to Emerge Tools for size analysis...")
-      
-      # Set up Emerge environment variables
-      emerge_build_type = ENV["EMERGE_BUILD_TYPE"] || "pull-request"
-      github_pr_number = ENV["GITHUB_PR_NUMBER"]
-      github_base_sha = ENV["GITHUB_BASE_SHA"]
-      sentry_sha = ENV["SENTRY_SHA"]
-      
-      # Create Emerge upload command
-      emerge_command = "emerge upload ./build/MobileInAppAdvertisement.xcarchive"
-      emerge_command += " --api-token #{ENV['EMERGE_API_TOKEN']}"
-      emerge_command += " --build-type #{emerge_build_type}"
-      emerge_command += " --pr-number #{github_pr_number}" if github_pr_number
-      emerge_command += " --base-sha #{github_base_sha}" if github_base_sha
-      emerge_command += " --sha #{sentry_sha}" if sentry_sha
-      
-      # Execute Emerge upload
-      sh(emerge_command)
-      
-      UI.success("Successfully uploaded build to Emerge Tools")
-    else
-      UI.error("EMERGE_API_TOKEN not found - skipping Emerge upload")
-    end
-    
-    # Upload to Sentry if auth token is available
-    if ENV["SENTRY_AUTH_TOKEN"]
+  desc "Upload build to Sentry with PR context"
+  lane :sentry_upload_build do
+    # Upload build to Sentry with detailed PR context
+    if ENV["SENTRY_SENTRY_AUTH_TOKEN"]
       sentry_upload_build(
-        auth_token: ENV["SENTRY_AUTH_TOKEN"],
-        org_slug: "uprate",
-        project_slug: "mobile-in-app-advertisements",
-        xcarchive_path: "./build/MobileInAppAdvertisement.xcarchive"
+        auth_token: ENV['SENTRY_SENTRY_AUTH_TOKEN'],
+        org_slug: 'uprate',
+        project_slug: 'mobile-in-app-advertisements',
+        pr_number: ENV['GITHUB_PR_NUMBER'],
+        base_ref: ENV['GITHUB_BASE_REF'],
+        base_sha: ENV['GITHUB_BASE_SHA'],
+        head_ref: ENV['GITHUB_HEAD_REF'] || ENV['GITHUB_REF']&.sub('refs/heads/', ''),
+        head_sha: ENV['SENTRY_SHA'],
+        log_level: 'debug'
       )
     else
-      UI.message("SENTRY_AUTH_TOKEN not found - skipping Sentry build upload")
+      UI.message("SENTRY_SENTRY_AUTH_TOKEN not found - skipping Sentry build upload")
     end
   end
 
