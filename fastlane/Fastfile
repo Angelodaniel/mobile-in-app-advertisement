@@ -30,7 +30,6 @@ platform :ios do
       scheme: "MobileInAppAdvertisement",
       configuration: "Debug",
       destination: "platform=iOS Simulator,name=iPhone 16,OS=latest",
-      skip_archive: true
     )
     
     # Upload debug symbols to Sentry
@@ -40,6 +39,16 @@ platform :ios do
         org_slug: 'uprate',
         project_slug: 'mobile-in-app-advertisements',
         include_sources: true
+      )
+      sentry_upload_build(
+        auth_token: ENV['SENTRY_AUTH_TOKEN'],
+        org_slug: 'uprate',
+        project_slug: 'mobile-in-app-advertisements',
+        base_ref: ENV['GITHUB_BASE_REF'],
+        base_sha: ENV['GITHUB_BASE_SHA'],
+        head_ref: ENV['GITHUB_HEAD_REF'] || ENV['GITHUB_REF']&.sub('refs/heads/', ''),
+        head_sha: ENV['SENTRY_SHA'],
+        log_level: 'debug'
       )
     else
       UI.message("SENTRY_AUTH_TOKEN not found - skipping Sentry debug files upload")
