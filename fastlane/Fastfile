@@ -57,23 +57,29 @@ platform :ios do
 
   desc "Build app and upload debug symbols to Sentry"
   lane :build_and_upload_to_sentry do
-    # Build the app for debug (simulator build to avoid signing issues)
+    # Build the app for release with proper signing
     build_app(
       scheme: "MobileInAppAdvertisement",
-      configuration: "Debug",
-      destination: "platform=iOS Simulator,name=iPhone 16"
+      configuration: "Release",
+      export_method: "development",
+      archive_path: "./build/MobileInAppAdvertisement.xcarchive",
+      export_options: {
+        method: "development",
+        signingStyle: "automatic",
+        teamID: ENV["TEAM_ID"] # Add your team ID as environment variable
+      }
     )
     
-    # Upload debug symbols to Sentry (if available)
+    # Upload complete build to Sentry
     if ENV["SENTRY_AUTH_TOKEN"]
-      sentry_debug_files_upload(
+      sentry_upload_build(
         auth_token: ENV["SENTRY_AUTH_TOKEN"],
         org_slug: "uprate",
         project_slug: "mobile-in-app-advertisements",
-        include_sources: true
+        xcarchive_path: "./build/MobileInAppAdvertisement.xcarchive"
       )
     else
-      UI.message("SENTRY_AUTH_TOKEN not found - skipping debug symbols upload")
+      UI.message("SENTRY_AUTH_TOKEN not found - skipping Sentry build upload")
     end
   end
 
