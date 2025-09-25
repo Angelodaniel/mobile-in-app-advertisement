@@ -2,4 +2,5 @@
 #
 # Ensure this file is checked in to source control!
 
-gem 'fastlane-plugin-sentry'
+gem 'fastlane-plugin-emerge', '0.10.8'
+gem 'fastlane-plugin-sentry', git: 'https://github.com/getsentry/sentry-fastlane-plugin.git', ref: '2dee10590e098f551d37de176a9acd9bca665ae2'
