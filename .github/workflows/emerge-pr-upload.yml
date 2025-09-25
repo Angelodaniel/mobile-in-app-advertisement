@@ -33,6 +33,10 @@ jobs:
         run: bundle exec fastlane ios build_and_upload_to_sentry
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          GITHUB_PR_NUMBER: ${{ github.event_name == 'pull_request' && github.event.number || '' }}
+          CONFIGURATION: Debug
+          GITHUB_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.ref_name }}
           GITHUB_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}
+          GITHUB_HEAD_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || '' }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_PR_NUMBER: ${{ github.event_name == 'pull_request' && github.event.number || '' }}
           SENTRY_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}

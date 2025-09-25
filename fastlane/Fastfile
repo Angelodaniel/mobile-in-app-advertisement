@@ -65,16 +65,20 @@ platform :ios do
       skip_archive: true
     )
     
-    # Upload debug symbols to Sentry (works with simulator builds)
+    # Upload build to Sentry with detailed configuration
     if ENV["SENTRY_AUTH_TOKEN"]
-      sentry_debug_files_upload(
-        auth_token: ENV["SENTRY_AUTH_TOKEN"],
-        org_slug: "uprate",
-        project_slug: "mobile-in-app-advertisements",
-        include_sources: true
+      sentry_upload_build(
+        auth_token: ENV['SENTRY_AUTH_TOKEN'],
+        org_slug: 'uprate',
+        project_slug: 'mobile-in-app-advertisements',
+        base_ref: ENV['GITHUB_BASE_REF'],
+        base_sha: ENV['GITHUB_BASE_SHA'],
+        head_ref: ENV['GITHUB_HEAD_REF'] || ENV['GITHUB_REF']&.sub('refs/heads/', ''),
+        build_configuration: ENV['CONFIGURATION'] || 'Debug',
+        log_level: 'debug'
       )
     else
-      UI.message("SENTRY_AUTH_TOKEN not found - skipping debug symbols upload")
+      UI.message("SENTRY_AUTH_TOKEN not found - skipping Sentry build upload")
     end
   end
 
