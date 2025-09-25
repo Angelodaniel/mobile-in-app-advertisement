@@ -1,6 +1,8 @@
-name: Emerge PR iOS Upload (Size Analysis)
+name: Emerge iOS Upload (Size Analysis)
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -33,11 +35,12 @@ jobs:
           sudo mv emerge /usr/local/bin/
           emerge --version
 
-      - name: Build & upload iOS size analysis binary to Emerge Tools
-        run: bundle exec fastlane ios build_upload_emerge
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          CONFIGURATION: Release
-          GITHUB_PR_NUMBER: ${{ github.event.number }}
-          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          SENTRY_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        - name: Build & upload iOS size analysis binary to Emerge Tools
+          run: bundle exec fastlane ios build_upload_emerge
+          env:
+            SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+            CONFIGURATION: Release
+            EMERGE_BUILD_TYPE: ${{ github.event_name == 'pull_request' && 'pull-request' || 'main' }}
+            GITHUB_PR_NUMBER: ${{ github.event_name == 'pull_request' && github.event.number || '' }}
+            GITHUB_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}
+            SENTRY_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
