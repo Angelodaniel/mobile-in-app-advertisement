@@ -188,31 +188,29 @@ platform :ios do
 
   desc "Upload build to Sentry with PR context"
   lane :upload_build_to_sentry do
-    # Build the app first to create an archive
+    # Build the app for debug (simulator build to avoid signing issues)
     build_app(
       scheme: "MobileInAppAdvertisement",
       configuration: "Debug",
       destination: "platform=iOS Simulator,name=iPhone 16,OS=latest",
-      skip_archive: false,
-      archive_path: "./build/MobileInAppAdvertisement.xcarchive"
+      skip_archive: true
     )
 
-    # Upload build to Sentry with detailed PR context
+    # Upload debug symbols to Sentry with PR context
     if ENV["SENTRY_AUTH_TOKEN"]
-      sentry_upload_build(
+      sentry_debug_files_upload(
         auth_token: ENV['SENTRY_AUTH_TOKEN'],
         org_slug: 'uprate',
         project_slug: 'mobile-in-app-advertisements',
-        xcarchive_path: "./build/MobileInAppAdvertisement.xcarchive",
+        include_sources: true,
         pr_number: ENV['GITHUB_PR_NUMBER'],
         base_ref: ENV['GITHUB_BASE_REF'],
         base_sha: ENV['GITHUB_BASE_SHA'],
         head_ref: ENV['GITHUB_HEAD_REF'] || ENV['GITHUB_REF']&.sub('refs/heads/', ''),
-        head_sha: ENV['SENTRY_SHA'],
-        log_level: 'debug'
+        head_sha: ENV['SENTRY_SHA']
       )
     else
-      UI.message("SENTRY_AUTH_TOKEN not found - skipping Sentry build upload")
+      UI.message("SENTRY_AUTH_TOKEN not found - skipping Sentry debug files upload")
     end
   end
 
