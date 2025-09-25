@@ -114,7 +114,8 @@ platform :ios do
       configuration: "Debug",
       export_method: "development",
       export_team_id: ENV["TEAM_ID"],
-      archive_path: "./build/MobileInAppAdvertisement.xcarchive"
+      archive_path: "./build/MobileInAppAdvertisement.xcarchive",
+      xcargs: "CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM=#{ENV['TEAM_ID']}"
     )
 
     # Upload build to Sentry with PR context
