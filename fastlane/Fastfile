@@ -115,7 +115,6 @@ platform :ios do
         auth_token: ENV['SENTRY_AUTH_TOKEN'],
         org_slug: 'uprate',
         project_slug: 'mobile-in-app-advertisements',
-        xcarchive_path: "./build/MobileInAppAdvertisement.xcarchive",
         base_ref: ENV['GITHUB_BASE_REF'],
         base_sha: ENV['GITHUB_BASE_SHA'],
         head_ref: ENV['GITHUB_HEAD_REF'] || ENV['GITHUB_REF']&.sub('refs/heads/', ''),
