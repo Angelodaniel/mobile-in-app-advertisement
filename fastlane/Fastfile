@@ -108,13 +108,6 @@ platform :ios do
 
   desc "Upload build to Sentry"
   lane :upload_build_to_sentry do
-    # Build the app without code signing
-    build_app(
-      scheme: "MobileInAppAdvertisement",
-      configuration: "Debug",
-      skip_codesigning: true,
-      archive_path: "./build/MobileInAppAdvertisement.xcarchive"
-    )
 
     # Upload build to Sentry with PR context
     if ENV["SENTRY_AUTH_TOKEN"]
