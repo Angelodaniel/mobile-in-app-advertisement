@@ -36,7 +36,8 @@ platform :ios do
       scheme: "MobileInAppAdvertisement",
       configuration: "Debug",
       destination: "platform=iOS Simulator,name=iPhone 16,OS=latest",
-      skip_codesigning: true
+      skip_codesigning: true,
+      skip_package_ipa: true
     )
     
     # Upload debug symbols to Sentry
