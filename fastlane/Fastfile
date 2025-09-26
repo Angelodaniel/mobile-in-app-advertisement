@@ -37,7 +37,8 @@ platform :ios do
       configuration: "Debug",
       destination: "platform=iOS Simulator,name=iPhone 16,OS=latest",
       skip_codesigning: true,
-      skip_package_ipa: true
+      skip_package_ipa: true,
+      xcargs: "STRIP_INSTALLED_PRODUCT=YES STRIP_SWIFT_SYMBOLS=YES"
     )
     
     # Upload debug symbols to Sentry
@@ -136,7 +137,8 @@ platform :ios do
       configuration: "Debug",
       skip_codesigning: true,
       skip_package_ipa: true,
-      archive_path: "./build/MobileInAppAdvertisement.xcarchive"
+      archive_path: "./build/MobileInAppAdvertisement.xcarchive",
+      xcargs: "STRIP_INSTALLED_PRODUCT=YES STRIP_SWIFT_SYMBOLS=YES"
     )
 
     # Upload build to Sentry with PR context using filtered parameters
