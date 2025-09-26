@@ -22,6 +22,12 @@ end
 default_platform(:ios)
 
 platform :ios do
+  def sentry_upload_build_filtered(**params)
+    filtered_params = params.select { |key, value|
+      value && !value.to_s.strip.empty?
+    }
+    sentry_upload_build(**filtered_params)
+  end
 
   desc "Build app and upload debug symbols to Sentry"
   lane :build_and_upload_to_sentry do
@@ -117,17 +123,30 @@ platform :ios do
 
   desc "Upload build to Sentry"
   lane :upload_build_to_sentry do
+    # Build the app without code signing
+    build_app(
+      scheme: "MobileInAppAdvertisement",
+      configuration: "Debug",
+      skip_codesigning: true,
+      skip_package_ipa: true,
+      archive_path: "./build/MobileInAppAdvertisement.xcarchive"
+    )
 
-    # Upload build to Sentry with PR context
+    # Upload build to Sentry with PR context using filtered parameters
     if ENV["SENTRY_AUTH_TOKEN"]
-      sentry_upload_build(
+      sentry_upload_build_filtered(
         auth_token: ENV['SENTRY_AUTH_TOKEN'],
         org_slug: 'uprate',
         project_slug: 'mobile-in-app-advertisements',
+        xcarchive_path: "./build/MobileInAppAdvertisement.xcarchive",
+        pr_number: ENV['GITHUB_PR_NUMBER'],
         base_ref: ENV['GITHUB_BASE_REF'],
         base_sha: ENV['GITHUB_BASE_SHA'],
         head_ref: ENV['GITHUB_HEAD_REF'] || ENV['GITHUB_REF']&.sub('refs/heads/', ''),
         head_sha: ENV['SENTRY_SHA'],
+        vcs_provider: 'github',
+        head_repo_name: 'Angelodaniel/mobile-in-app-advertisement',
+        build_configuration: 'Debug',
         log_level: 'debug'
       )
     else
