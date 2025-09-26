@@ -137,7 +137,6 @@
 				BB7B7C132DEF049D0026099F /* Frameworks */,
 				BB7B7C142DEF049D0026099F /* Resources */,
 				BBEF47CE2DEF327200147A39 /* ShellScript */,
-				BBEF47CF2DEF327200147A40 /* Strip Binary Symbols */,
 			);
 			buildRules = (
 			);
@@ -291,24 +290,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "if [ -f \"${PROJECT_DIR}/sentry.properties\" ] && command -v /usr/local/bin/sentry-cli &> /dev/null && [ -n \"${SENTRY_AUTH_TOKEN}\" ]; then\n    export SENTRY_PROPERTIES=\"${PROJECT_DIR}/sentry.properties\"\n    export SENTRY_ORG=uprate\n    export SENTRY_PROJECT=mobile-in-app-advertisements\n    /usr/local/bin/sentry-cli upload-dif || echo \"Sentry upload failed, continuing build...\"\nelse\n    echo \"Sentry CLI not available, sentry.properties not found, or SENTRY_AUTH_TOKEN not set. Skipping debug symbol upload.\"\nfi\n\ntouch \"${DERIVED_FILE_DIR}/sentry-upload-complete\"\n";
-		};
-		BBEF47CF2DEF327200147A40 /* Strip Binary Symbols */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${DWARF_DSYM_FOLDER_PATH}/${EXECUTABLE_NAME}.app.dSYM/Contents/Resources/DWARF/${EXECUTABLE_NAME}",
-			);
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/bash;
-			shellScript = "#!/bin/bash\nset -e\n\necho \"Starting the symbol stripping process...\"\necho \"Configuration: ${CONFIGURATION}\"\n\n# Path to the app directory\nAPP_DIR_PATH=\"${BUILT_PRODUCTS_DIR}/${EXECUTABLE_FOLDER_PATH}\"\necho \"App directory path: ${APP_DIR_PATH}\"\n\n# Check if binary exists\nif [ ! -f \"${APP_DIR_PATH}/${EXECUTABLE_NAME}\" ]; then\n  echo \"Binary not found: ${APP_DIR_PATH}/${EXECUTABLE_NAME}\"\n  echo \"Symbol stripping process completed (binary not found).\"\n  exit 0\nfi\n\n# Strip main binary with sandboxing workaround\necho \"Stripping main binary: ${APP_DIR_PATH}/${EXECUTABLE_NAME}\"\n\n# Try to strip with different approaches\nif strip -rSTx \"${APP_DIR_PATH}/${EXECUTABLE_NAME}\" 2>/dev/null; then\n  echo \"Successfully stripped main binary.\"\nelse\n  echo \"First attempt failed, trying alternative approach...\"\n  # Alternative: Copy to temp location, strip, then copy back\n  TEMP_BINARY=\"/tmp/$(basename \"${EXECUTABLE_NAME}\")_stripped\"\n  if cp \"${APP_DIR_PATH}/${EXECUTABLE_NAME}\" \"${TEMP_BINARY}\" 2>/dev/null; then\n    if strip -rSTx \"${TEMP_BINARY}\" 2>/dev/null; then\n      if cp \"${TEMP_BINARY}\" \"${APP_DIR_PATH}/${EXECUTABLE_NAME}\" 2>/dev/null; then\n        echo \"Successfully stripped main binary (using temp file approach).\"\n        rm -f \"${TEMP_BINARY}\"\n      else\n        echo \"Failed to copy stripped binary back.\"\n        rm -f \"${TEMP_BINARY}\"\n      fi\n    else\n      echo \"Failed to strip temp binary.\"\n      rm -f \"${TEMP_BINARY}\"\n    fi\n  else\n    echo \"Failed to create temp copy of binary.\"\n  fi\nfi\n\n# Path to the Frameworks directory\nAPP_FRAMEWORKS_DIR=\"${APP_DIR_PATH}/Frameworks\"\necho \"Frameworks directory path: ${APP_FRAMEWORKS_DIR}\"\n\n# Strip symbols from frameworks, if Frameworks/ exists at all\n# ... as long as the framework is NOT signed by Apple\nif [ -d \"${APP_FRAMEWORKS_DIR}\" ]; then\n  echo \"Frameworks directory exists. Proceeding to strip symbols from frameworks.\"\n  find \"${APP_FRAMEWORKS_DIR}\" -type f -perm +111 -maxdepth 2 -mindepth 2 -exec bash -c '\n  codesign -v -R=\"anchor apple\" \"{}\" &> /dev/null ||\n  (\n      echo \"Stripping {}\" &&\n      if [ -w \"{}\" ]; then\n          if strip -rSTx \"{}\" 2>/dev/null; then\n              echo \"Successfully stripped {}\"\n          else\n              echo \"Failed to strip {} (trying temp approach)\"\n              TEMP_FRAMEWORK=\"/tmp/$(basename \"{}\")_stripped\"\n              if cp \"{}\" \"${TEMP_FRAMEWORK}\" 2>/dev/null && strip -rSTx \"${TEMP_FRAMEWORK}\" 2>/dev/null && cp \"${TEMP_FRAMEWORK}\" \"{}\" 2>/dev/null; then\n                  echo \"Successfully stripped {} (using temp approach)\"\n              else\n                  echo \"Failed to strip {} even with temp approach\"\n              fi\n              rm -f \"${TEMP_FRAMEWORK}\"\n          fi\n      else\n          echo \"Warning: No write permission for {}\"\n      fi\n  )\n  ' \\;\n  echo \"Framework stripping process completed.\"\nelse\n  echo \"Frameworks directory does not exist. Skipping framework stripping.\"\nfi\n\necho \"Symbol stripping process completed.\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
