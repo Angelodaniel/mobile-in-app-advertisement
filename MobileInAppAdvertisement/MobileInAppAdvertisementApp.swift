@@ -14,16 +14,22 @@ struct MobileInAppAdvertisementApp: App {
     let persistenceController = PersistenceController.shared
 
     init() {
-        // Configure Sentry
-        SentrySDK.start { options in
-            options.dsn = "https://b72599749761ea6e64e6551475b56e21@o4508065179762768.ingest.de.sentry.io/4509434720485456"
-            options.debug = true
-            options.tracesSampleRate = 1.0 // 100% sampling
-            options.configureProfiling = {
-                $0.sessionSampleRate = 1.0
-                $0.lifecycle = .trace
-            }
-        }
+               // Configure Sentry
+               SentrySDK.start { options in
+                   options.dsn = "https://282f79340b524f0b0e00bbc33b1bc5ca@sentry.io/4510102193963008"
+                   options.debug = true
+                   options.tracesSampleRate = 1.0 // 100% sampling
+                   options.configureProfiling = {
+                       $0.sessionSampleRate = 1.0
+                       $0.lifecycle = .trace
+                   }
+               }
+        
+        // Test Sentry connection
+        print("🧪 Testing Sentry connection...")
+        SentrySDK.addBreadcrumb(Breadcrumb(level: .info, category: "test"))
+        SentrySDK.capture(message: "Sentry connection test from Turkey VPN")
+        print("✅ Sentry test message sent")
         
         // Initialize Google Mobile Ads
         MobileAds.shared.start { status in
